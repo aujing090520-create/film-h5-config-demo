@@ -199,10 +199,6 @@ const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
   live: { label: '直播区（已有）', fr: 'FR-14', displayIndex: '', content: { title: '正在直播', subtitle: '', background: '', config: { items: '长安花笺 主创见面会\n演员在线聊幕后' } }, english: { title: 'Live now', subtitle: '', background: '', config: { items: 'Letters of Chang’an cast meet-up\nCast talks about the scenes' } } },
 }
 
-moduleDefinitions.clips.content.config.moreLabel = '更多'
-moduleDefinitions.clips.english.config.moreLabel = 'More'
-moduleDefinitions.clips.content.config.aggregateTitle = '全部精彩切片'
-moduleDefinitions.clips.english.config.aggregateTitle = 'All scene clips'
 moduleDefinitions.ranking.content.config.cta = '捧场'
 moduleDefinitions.ranking.english.config.cta = 'Support'
 moduleDefinitions.topic.content.config.cta = '去发布'
@@ -890,7 +886,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
             <div className="localized-row" key={`${language}-poll-option-${index}`}>
               <span className="option-order">选项 {index + 1}</span>
               <input value={option.label} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} placeholder="输入选项文案" />
-              <input value={option.image} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="选项图片链接（可选）" />
+              <div className="clip-image-input"><input value={option.image} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="选项图片链接（可选）" /><button className="secondary" title="上传投票选项图片"><Upload size={14} /></button></div>
               <button className="row-remove" onClick={() => updatePollOptions(language, options.filter((_, itemIndex) => itemIndex !== index))} title="删除选项"><X size={15} /></button>
             </div>
           ))}
@@ -1025,7 +1021,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       {selected.kind === 'hero' && <>{textRows('签到按钮文案', 'cta')}{textRows('签到页标题', 'checkinTitle')}{textRows('签到页说明', 'checkinHint')}{checkinPosterRows()}</>}
       {selected.kind === 'info' && <>{textRows('剧集名称', 'name', false, true)}{infoTagRows()}{textRows('剧情简介', 'intro', true)}</>}
       {selected.kind === 'cast' && structuredRows('演员列表', 'items', ['演员名', '角色名'])}
-      {selected.kind === 'clips' && <>{clipResourceRows()}{textRows('更多入口文案', 'moreLabel')}{textRows('切片聚合页标题', 'aggregateTitle')}{aggregateImageRows('clips')}</>}
+      {selected.kind === 'clips' && clipResourceRows()}
       {selected.kind === 'poll' && <>{textRows('投票题目', 'question', false, true)}{pollOptionRows()}{textRows('投票说明', 'helper')}</>}
       {selected.kind === 'ranking' && <>{structuredRows('排行榜角色', 'items', ['角色名', '热力值'])}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
       {selected.kind === 'banner' && linkRows('跳转链接', 'ctaLink')}
@@ -1162,7 +1158,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
       </div>
       <div className="h5-scroll" ref={scrollRef}>
         {state.screen === 'cast' ? <OverlayScreen title={isChinese ? '全部演员' : 'All cast'} onClose={() => setState({ ...state, screen: '' })} list={castList} images={castList.map((_, index) => getImage(cast, `cast-${(index % imageSlots.cast.length) + 1}`))} /> : null}
-        {state.screen === 'clips' ? <OverlayScreen title={getContent(clips)?.config.aggregateTitle || getContent(clips)?.title || ''} onClose={() => setState({ ...state, screen: '' })} list={clipList} images={clipList.map((_, index) => getImage(clips, `clip-${index + 1}`))} links={clipLinks} background={getImage(clips, 'clips-aggregate')} /> : null}
+        {state.screen === 'clips' ? <ClipLibraryScreen title={getContent(clips)?.title || ''} onClose={() => setState({ ...state, screen: '' })} clips={clipList.map((name, index) => ({ name, image: getImage(clips, `clip-${index + 1}`), link: clipLinks[index]?.trim() ?? '' }))} /> : null}
         {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} entries={splitLines(getContent(ranking)?.config.items).map((item) => item.split('｜'))} images={imageSlots.ranking.map((slot) => getImage(ranking, slot.key))} background={getImage(ranking, 'ranking-aggregate')} onSelect={(name, heat) => setState({ ...state, screen: '', rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
         {state.screen === 'checkin' ? <CheckinScreen onClose={() => setState({ ...state, screen: '' })} content={getContent(modules.find((item) => item.kind === 'hero'))!} language={language} /> : null}
         {modules.map((module) => (
@@ -1175,7 +1171,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
           >
             {module.id === selectedId && <span className="preview-module-marker">当前配置</span>}
             {review && <button className="fr-badge" onClick={(event) => { event.stopPropagation(); onSelectModule(module.id) }}>{module.fr}</button>}
-            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{(module.kind === 'cast' ? splitLines(getContent(module)?.config.items).length > 4 : ['clips', 'ranking'].includes(module.kind)) && <button className={isFocused(module, 'moreLabel') ? 'preview-field-highlight' : ''} style={module.kind === 'cast' ? undefined : previewTextStyle(module, 'moreLabel', '#8b807a')} onClick={(e) => { e.stopPropagation(); setState({ ...state, screen: module.kind === 'cast' ? 'cast' : module.kind === 'clips' ? 'clips' : 'ranking' }) }}>{module.kind === 'cast' ? (isChinese ? '更多' : 'More') : getContent(module)?.config.moreLabel}</button>}</div>}
+            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{(module.kind === 'cast' ? splitLines(getContent(module)?.config.items).length > 4 : module.kind === 'clips' ? splitLines(getContent(module)?.config.items).length > 3 : module.kind === 'ranking') && <button className={isFocused(module, 'moreLabel') ? 'preview-field-highlight' : ''} style={module.kind === 'ranking' ? previewTextStyle(module, 'moreLabel', '#8b807a') : undefined} onClick={(e) => { e.stopPropagation(); setState({ ...state, screen: module.kind === 'cast' ? 'cast' : module.kind === 'clips' ? 'clips' : 'ranking' }) }}>{module.kind === 'ranking' ? getContent(module)?.config.moreLabel : (isChinese ? '更多' : 'More')}</button>}</div>}
             <PhoneModule module={module} content={getContent(module)!} language={language} state={state} setState={setState} flash={flash} focusField={focus?.moduleId === module.id && focus.language === language ? focus.field : null} />
           </div>
         ))}
@@ -1266,6 +1262,10 @@ function OverlayScreen({ title, list, onClose, images, links = [], background = 
     const row = <><div className="overlay-art" style={{ '--asset-image': images[index] ? `url("${images[index]}")` : 'none' } as React.CSSProperties} /><span><b>{item}</b></span><ChevronRight size={17} /></>
     return link ? <button className="overlay-resource" key={`${item}-${index}`} onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}>{row}</button> : <div key={`${item}-${index}`}>{row}</div>
   })}</div></div>
+}
+
+function ClipLibraryScreen({ title, clips, onClose }: { title: string; clips: Array<{ name: string; image: string; link: string }>; onClose: () => void }) {
+  return <div className="h5-overlay clip-library"><header><button onClick={onClose}><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="clip-library-grid">{clips.map((clip, index) => <button key={`${clip.name}-${index}`} onClick={() => { if (clip.link) window.open(clip.link, '_blank', 'noopener,noreferrer') }}><i style={{ '--clip-library-image': clip.image ? `url("${clip.image}")` : 'none' } as React.CSSProperties} /><b>{clip.name}</b></button>)}</div></div>
 }
 
 function ReviewRules({ modules, selectedId, onSelect }: { modules: PageModule[]; selectedId: string; onSelect: (id: string) => void }) {

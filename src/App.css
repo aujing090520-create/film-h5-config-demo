@@ -92,6 +92,11 @@
 .post-tile, .post-tile.pt2 { background: linear-gradient(0deg, rgba(0,0,0,.55), transparent), var(--asset-image) center / cover; }
 .live-card, .live-card.l2 { background: linear-gradient(0deg, rgba(0,0,0,.72), transparent), var(--asset-image) center / cover; }
 .overlay-art { background: var(--asset-image) center / cover; }
+.clip-library { background: #f7f8fa; }
+.clip-library-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+.clip-library-grid button { display: flex; min-width: 0; flex-direction: column; overflow: hidden; padding: 0 0 9px; color: #252b33; border: 1px solid #eceff3; border-radius: 5px; background: #fff; text-align: left; }
+.clip-library-grid i { display: block; width: 100%; aspect-ratio: 1.5; background: var(--clip-library-image) center / cover; }
+.clip-library-grid b { padding: 8px 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 
 /* Field focus is editor-only and maps the active configuration control to its preview target. */
 .preview-field-highlight { position: relative; z-index: 10; outline: 2px solid #1677d2; outline-offset: 2px; border-radius: 3px; background-color: rgba(232,244,255,.52); box-shadow: 0 0 0 3px rgba(22,119,210,.15); }
