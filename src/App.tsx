@@ -862,6 +862,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           {language !== 'English' && <button className="row-remove" onClick={() => updateConfig(language, key, '')} title="清空该语言内容"><X size={15} /></button>}
         </div>
       ))}
+      {localizedActions(`text-${key}`)}
     </section>
   )
 
@@ -875,6 +876,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           {language !== 'English' && <button className="row-remove" onClick={() => updateConfig(language, key, '')} title="清空该语言链接"><X size={15} /></button>}
         </div>
       ))}
+      {localizedActions(`link-${key}`)}
     </section>
   )
 
@@ -899,6 +901,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           <button type="button" className="secondary add-option" onClick={() => updatePollOptions(language, [...options, { label: `选项 ${options.length + 1}`, image: '' }])}><Plus size={15} /> 添加选项</button>
         </div>
       })}
+      {localizedActions('poll-options')}
     </section>
   )
 
@@ -926,6 +929,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           <button className="secondary add-option" onClick={() => updateRows([...rows, columns.map(() => '')])}><Plus size={15} /> 添加条目</button>
         </div>
       })}
+      {localizedActions(`structured-${String(key)}`)}
     </section>
   )
 
@@ -952,6 +956,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           <button className="secondary add-option" onClick={() => { infoTagCounter.current += 1; const row = tags.length ? Math.max(...tags.map((tag) => tag.row)) : 1; const position = tags.filter((tag) => tag.row === row).length + 1; updateTags([...tags, { id: `info-tag-${infoTagCounter.current}`, text: '新标签', row, position, color: '#2b2624', fontSize: 12 }]) }}><Plus size={15} /> 添加标签</button>
         </div>
       })}
+      {localizedActions('info-tags')}
     </section>
   )
 
@@ -985,6 +990,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           <button className="secondary add-option" onClick={() => updateResources([...resources, { name: '', image: '', link: '' }])}><Plus size={15} /> 添加切片</button>
         </div>
       })}
+      {localizedActions('clip-resources')}
     </section>
   )
 
@@ -1014,6 +1020,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     <section className="localized-field">
       <div className="localized-field-label">聚合页背景图</div>
       {languages.map((language) => imageRow(language, { key: `${kind}-aggregate`, label: '聚合页背景' }))}
+      {localizedActions(`${kind}-aggregate-images`, true)}
     </section>
   )
 
@@ -1054,6 +1061,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
         </div>
         <div className="localized-field-note">可同时设置背景色与背景图片，图片覆盖在颜色之上。</div>
         {languages.map(backgroundImageRow)}
+        {localizedActions('background-images', true)}
       </section>
       {selected.kind !== 'hero' && <section className="localized-field">
         {styledFieldLabel('标题', 'title', false, selected.titleColor)}
