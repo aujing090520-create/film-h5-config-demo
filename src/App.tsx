@@ -13,6 +13,7 @@ import {
   Image,
   Languages,
   Menu,
+  MoreHorizontal,
   Plus,
   QrCode,
   Search,
@@ -767,6 +768,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
 }) {
   const hasDisplayImage = selected.kind !== 'clips' && imageSlots[selected.kind].length > 0
   const infoTagCounter = useRef(0)
+  const [openClipboardMenu, setOpenClipboardMenu] = useState<string | null>(null)
   const usesExistingConfig = ['topic', 'posts', 'voice', 'live'].includes(selected.kind)
   if (usesExistingConfig) {
     return (
@@ -820,6 +822,24 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       flash('剪贴板中没有可用的模块配置')
     }
   }
+  const localizedActions = (id: string, includeBatchUpload = false) => (
+    <div className="localized-add">
+      <button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 追加</button>
+      <div className="clipboard-menu">
+        <button
+          className="secondary clipboard-menu-trigger"
+          aria-label="更多多语言操作"
+          aria-expanded={openClipboardMenu === id}
+          onClick={() => setOpenClipboardMenu(openClipboardMenu === id ? null : id)}
+        ><MoreHorizontal size={17} /></button>
+        {openClipboardMenu === id && <div className="clipboard-menu-popover">
+          <button onClick={() => { void copyModuleContent(); setOpenClipboardMenu(null) }}><Copy size={14} /> 复制到剪贴板</button>
+          <button onClick={() => { void pasteModuleContent(); setOpenClipboardMenu(null) }}><Clipboard size={14} /> 从剪贴板粘贴</button>
+        </div>}
+      </div>
+      {includeBatchUpload && <button className="secondary"><Image size={15} /> 批量上传图片</button>}
+    </div>
+  )
   const updateImage = (language: Language, key: string, value: string) => {
     if (selected.kind === 'cast') {
       replaceContent(Object.fromEntries(Object.entries(selected.content).map(([contentLanguage, content]) => [contentLanguage, { ...content, images: { ...content.images, [key]: value } }])) as PageModule['content'])
@@ -1051,14 +1071,13 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       <section className="upload-block multilingual-head">
         <div className="block-label">多语言内容 <span className="multilingual-actions"><button className="ai-upload" onClick={onGenerateAi}><Sparkles size={14} /> AI 生成多语言</button><button className="ai-upload" onClick={() => flash('已打开多语言文档上传') }><Upload size={14} /> 上传多语言文档</button></span></div>
         <p>所有面向用户展示的图片与文字，均按语言分别配置。</p>
-        <div className="clipboard-actions"><button className="secondary" onClick={copyModuleContent}><Copy size={14} /> 复制本模块</button><button className="secondary" onClick={pasteModuleContent}><Clipboard size={14} /> 从剪贴板粘贴</button></div>
       </section>
       {hasDisplayImage && <section className="localized-field">
         <div className="localized-field-label"><span className="required-mark">*</span>图片</div>
         {selected.kind === 'cast'
           ? imageSlots.cast.map((slot) => imageRow('Chinese', slot, true))
           : languages.flatMap((language) => imageSlots[selected.kind].map((slot) => imageRow(language, slot)))}
-        <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button><button className="secondary"><Image size={15} /> 批量上传图片</button></div>
+        {localizedActions('images', true)}
       </section>}
       <section className="localized-field">
         <div className="localized-field-label">模块背景</div>
@@ -1075,7 +1094,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       {selected.kind !== 'hero' && <section className="localized-field">
         <div className="localized-field-label">标题</div>
         {languages.map(titleRow)}
-        <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button></div>
+        {localizedActions('title')}
       </section>}
       {selected.kind !== 'hero' && <section className="localized-field">
         <div className="localized-field-label">副标题</div>
@@ -1088,7 +1107,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
             {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { subtitle: '' })} title="清空该语言副标题"><X size={15} /></button>}
           </div>
         ))}
-        <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button></div>
+        {localizedActions('subtitle')}
       </section>}
       <div className="field-row">
         <label className="toggle-field">前端展示<span className={`switch ${selected.enabled ? '' : 'off'}`} onClick={() => updateModule({ enabled: !selected.enabled })}><i /></span></label>

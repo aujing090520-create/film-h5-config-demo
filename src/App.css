@@ -148,9 +148,12 @@
 .info-tag { line-height: 1.25; white-space: nowrap; }
 
 /* Acceptance additions: background assets, reusable clipboard content, and module conditions. */
-.multilingual-actions, .clipboard-actions { display: inline-flex; flex-wrap: wrap; gap: 7px; margin-left: 10px; vertical-align: middle; }
-.clipboard-actions { margin: 12px 0 0; }
-.clipboard-actions .secondary { height: 31px; }
+.multilingual-actions { display: inline-flex; flex-wrap: wrap; gap: 7px; margin-left: 10px; vertical-align: middle; }
+.clipboard-menu { position: relative; display: inline-flex; }
+.localized-add .clipboard-menu-trigger { width: 32px; min-width: 32px; padding: 0; }
+.clipboard-menu-popover { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 168px; padding: 4px; border: 1px solid #dbe3eb; border-radius: 6px; background: #fff; box-shadow: 0 8px 18px rgba(31,48,66,.16); }
+.clipboard-menu-popover button { width: 100%; display: flex; align-items: center; gap: 7px; padding: 8px 9px; color: #46515d; border: 0; border-radius: 4px; background: #fff; text-align: left; font-size: 12px; white-space: nowrap; }
+.clipboard-menu-popover button:hover { color: #1677d2; background: #edf6ff; }
 .localized-field-note { margin: 7px 0; color: #86919d; font-size: 12px; }
 .module-advanced-condition { display: flex; align-items: center; gap: 14px; margin-top: 24px; padding: 18px 0; color: #1f2329; font-size: 16px; font-weight: 700; }
 .advanced-condition-button { display: inline-flex; align-items: center; justify-content: center; min-width: 176px; height: 54px; color: #fff; border-radius: 10px; background: #1677d2; box-shadow: 0 3px 0 rgba(22, 119, 210, .12); font-size: 16px; font-weight: 700; }
