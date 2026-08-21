@@ -156,7 +156,7 @@
 .clipboard-menu-popover button:hover { color: #1677d2; background: #edf6ff; }
 .localized-field-note { margin: 7px 0; color: #86919d; font-size: 12px; }
 .module-advanced-condition { display: flex; align-items: center; gap: 14px; margin-top: 24px; padding: 18px 0; color: #1f2329; font-size: 16px; font-weight: 700; }
-.advanced-condition-button { display: inline-flex; align-items: center; justify-content: center; min-width: 176px; height: 54px; color: #fff; border-radius: 10px; background: #1677d2; box-shadow: 0 3px 0 rgba(22, 119, 210, .12); font-size: 16px; font-weight: 700; }
+.advanced-condition-button { display: inline-flex; align-items: center; justify-content: center; min-width: 112px; height: 32px; padding: 0 12px; color: #fff; border-radius: 6px; background: #1677d2; box-shadow: 0 1px 2px rgba(22, 119, 210, .12); font-size: 12px; font-weight: 600; }
 .phone-module:not(.module-hero) { background-image: linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)), var(--module-background-image, none); background-position: center; background-size: cover; }
 .phone-module.module-hero { background-image: linear-gradient(145deg, rgba(49,20,8,.2), transparent), var(--module-art); }
 .poll-option-editor .localized-row { grid-template-columns: 48px minmax(96px, 1fr) minmax(130px, 1.25fr) 34px 54px 28px; }
