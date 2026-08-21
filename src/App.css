@@ -152,13 +152,8 @@
 .clipboard-actions { margin: 12px 0 0; }
 .clipboard-actions .secondary { height: 31px; }
 .localized-field-note { margin: 7px 0; color: #86919d; font-size: 12px; }
-.module-condition-editor { display: grid; gap: 12px; margin-top: 24px; padding: 15px; border: 1px solid #dfe7ef; border-radius: 7px; background: #fafcfe; }
-.module-condition-editor > div:first-child { display: flex; align-items: baseline; gap: 10px; }
-.module-condition-editor b { color: #344250; font-size: 15px; }
-.module-condition-editor span { color: #83909d; font-size: 12px; }
-.condition-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.condition-fields label { display: grid; gap: 5px; color: #65717d; font-size: 12px; }
-.condition-fields input { min-width: 0; }
+.module-advanced-condition { display: flex; align-items: center; gap: 14px; margin-top: 24px; padding: 18px 0; color: #1f2329; font-size: 16px; font-weight: 700; }
+.advanced-condition-button { display: inline-flex; align-items: center; justify-content: center; min-width: 176px; height: 54px; color: #fff; border-radius: 10px; background: #1677d2; box-shadow: 0 3px 0 rgba(22, 119, 210, .12); font-size: 16px; font-weight: 700; }
 .phone-module:not(.module-hero) { background-image: linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)), var(--module-background-image, none); background-position: center; background-size: cover; }
 .phone-module.module-hero { background-image: linear-gradient(145deg, rgba(49,20,8,.2), transparent), var(--module-art); }
 .poll-option-editor .localized-row { grid-template-columns: 48px minmax(96px, 1fr) minmax(130px, 1.25fr) 34px 54px 28px; }

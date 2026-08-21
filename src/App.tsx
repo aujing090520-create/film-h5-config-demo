@@ -84,12 +84,6 @@ type CheckinPoster = {
   image: string
 }
 
-type ModuleCondition = {
-  enabled: boolean
-  regions: string
-  audience: string
-}
-
 type ModuleConfig = {
   name?: string
   intro?: string
@@ -143,7 +137,6 @@ type PageModule = {
   displayIndex: string
   titleColor: string
   enabled: boolean
-  condition: ModuleCondition
   content: Record<Language, LocalizedContent>
 }
 
@@ -242,7 +235,6 @@ const initialModules: PageModule[] = (Object.keys(moduleDefinitions) as ModuleKi
   displayIndex: moduleDefinitions[kind].displayIndex,
   titleColor: '#1f2329',
   enabled: true,
-  condition: { enabled: false, regions: '', audience: '' },
   content: {
     English: { ...moduleDefinitions[kind].english, background: '', images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].english.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
     Chinese: { ...moduleDefinitions[kind].content, background: '', images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].content.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
@@ -440,7 +432,6 @@ function App() {
       displayIndex: definition.displayIndex,
       titleColor: '#1f2329',
       enabled: true,
-      condition: { enabled: false, regions: '', audience: '' },
       content: Object.fromEntries(contentLanguages.map((language) => [language, {
         ...(language === 'English' ? definition.english : definition.content),
         background: '',
@@ -1104,10 +1095,9 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       </div>
       <div className="form-divider" />
       {special}
-      <section className="module-condition-editor">
-        <div><b>模块高级条件</b><span>按条件决定当前模块是否在用户端展示。</span></div>
-        <label className="toggle-field">启用条件<span className={`switch ${selected.condition.enabled ? '' : 'off'}`} onClick={() => updateModule({ condition: { ...selected.condition, enabled: !selected.condition.enabled } })}><i /></span></label>
-        {selected.condition.enabled && <div className="condition-fields"><label>目标地区<input value={selected.condition.regions} onChange={(event) => updateModule({ condition: { ...selected.condition, regions: event.target.value } })} placeholder="例如 US, JP" /></label><label>用户分群<input value={selected.condition.audience} onChange={(event) => updateModule({ condition: { ...selected.condition, audience: event.target.value } })} placeholder="例如 新用户" /></label></div>}
+      <section className="module-advanced-condition">
+        <span>高级条件：</span>
+        <span className="advanced-condition-button">配置高级条件</span>
       </section>
     </div>
   )
