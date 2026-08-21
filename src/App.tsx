@@ -137,6 +137,7 @@ type PageModule = {
   displayIndex: string
   titleColor: string
   enabled: boolean
+  style: ContentStyle
   content: Record<Language, LocalizedContent>
 }
 
@@ -235,6 +236,7 @@ const initialModules: PageModule[] = (Object.keys(moduleDefinitions) as ModuleKi
   displayIndex: moduleDefinitions[kind].displayIndex,
   titleColor: '#1f2329',
   enabled: true,
+  style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
   content: {
     English: { ...moduleDefinitions[kind].english, background: '', images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].english.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
     Chinese: { ...moduleDefinitions[kind].content, background: '', images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].content.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
@@ -431,6 +433,7 @@ function App() {
       displayIndex: definition.displayIndex,
       titleColor: '#1f2329',
       enabled: true,
+      style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
       content: Object.fromEntries(contentLanguages.map((language) => [language, {
         ...(language === 'English' ? definition.english : definition.content),
         background: '',
@@ -743,36 +746,39 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     )
   }
 
-  const colorValue = (language: Language, field: StyleField, fallback = '#1f2329') => selected.content[language].style?.textColors[field] ?? fallback
-  const updateTextColor = (language: Language, field: StyleField, color: string) => {
-    const currentStyle = selected.content[language].style ?? defaultContentStyle
-    updateContent(language, { style: { ...currentStyle, textColors: { ...currentStyle.textColors, [field]: color }, fontSizes: { ...currentStyle.fontSizes } } })
+  const colorValue = (field: StyleField, fallback = '#1f2329') => selected.style.textColors[field] ?? fallback
+  const updateTextColor = (field: StyleField, color: string) => {
+    updateModule({ style: { ...selected.style, textColors: { ...selected.style.textColors, [field]: color }, fontSizes: { ...selected.style.fontSizes } } })
   }
-  const updateBackgroundColor = (language: Language, color: string) => {
-    const currentStyle = selected.content[language].style ?? defaultContentStyle
-    updateContent(language, { style: { ...currentStyle, backgroundColor: color, textColors: { ...currentStyle.textColors }, fontSizes: { ...currentStyle.fontSizes } } })
+  const updateBackgroundColor = (color: string) => {
+    updateModule({ style: { ...selected.style, backgroundColor: color, textColors: { ...selected.style.textColors }, fontSizes: { ...selected.style.fontSizes } } })
   }
-  const updateFontSize = (language: Language, field: StyleField, value: string) => {
-    const currentStyle = selected.content[language].style ?? defaultContentStyle
-    const fontSizes = { ...currentStyle.fontSizes }
+  const updateFontSize = (field: StyleField, value: string) => {
+    const fontSizes = { ...selected.style.fontSizes }
     if (value === '') delete fontSizes[field]
     else fontSizes[field] = Math.min(48, Math.max(8, Number(value)))
-    updateContent(language, { style: { ...currentStyle, textColors: { ...currentStyle.textColors }, fontSizes } })
+    updateModule({ style: { ...selected.style, textColors: { ...selected.style.textColors }, fontSizes } })
   }
   const retranslate = (language: Language, label: string, source: string, apply: (value: string) => void) => {
     apply(source)
     onFocusPreviewField(language, label as PreviewFocus['field'])
     flash(`已使用 AI 重译${languageLabels[language]}${label}`)
   }
-  const colorControl = (language: Language, field: StyleField, fallback?: string) => (
+  const colorControl = (field: StyleField, fallback?: string) => (
     <label className="field-color" title="文字颜色">
-      <input type="color" value={colorValue(language, field, fallback)} onFocus={() => onFocusPreviewField(language, field)} onChange={(event) => updateTextColor(language, field, event.target.value)} />
+      <input type="color" value={colorValue(field, fallback)} onChange={(event) => updateTextColor(field, event.target.value)} />
     </label>
   )
-  const fontSizeControl = (language: Language, field: StyleField) => (
+  const fontSizeControl = (field: StyleField) => (
     <label className="field-font-size" title="字号">
-      <input type="number" min="8" max="48" step="1" value={selected.content[language].style?.fontSizes[field] ?? ''} placeholder="字号" onFocus={() => onFocusPreviewField(language, field)} onChange={(event) => updateFontSize(language, field, event.target.value)} />
+      <input type="number" min="8" max="48" step="1" value={selected.style.fontSizes[field] ?? ''} placeholder="字号" onChange={(event) => updateFontSize(field, event.target.value)} />
     </label>
+  )
+  const styledFieldLabel = (label: string, field: StyleField, required = false, fallback?: string) => (
+    <div className="localized-field-label with-style-controls">
+      <span>{required && <span className="required-mark">*</span>}{label}</span>
+      <span className="field-style-controls">{colorControl(field, fallback)}{fontSizeControl(field)}</span>
+    </div>
   )
   const copyModuleContent = async () => {
     try {
@@ -838,8 +844,6 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     <div className={`localized-row ${language !== sourceLanguage ? 'with-retranslate' : ''}`} key={`${language}-title`}>
       <select value={language} disabled><option>{languageLabels[language]}</option></select>
       <input value={selected.content[language].title} onFocus={() => onFocusPreviewField(language, 'title')} onChange={(event) => updateContent(language, { title: event.target.value })} placeholder={`${languageLabels[language]} 标题`} />
-      {colorControl(language, 'title', selected.titleColor)}
-      {fontSizeControl(language, 'title')}
       {language !== sourceLanguage && <button className="retranslate-button" onClick={() => retranslate(language, 'title', selected.content[sourceLanguage].title, (value) => updateContent(language, { title: value }))}>重译</button>}
       {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { title: '' })} title="清空该语言标题"><X size={15} /></button>}
     </div>
@@ -847,15 +851,13 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
 
   const textRows = (label: string, key: TextConfigKey, multiline = false, required = false) => (
     <section className="localized-field">
-      <div className="localized-field-label">{required && <span className="required-mark">*</span>}{label}</div>
+      {styledFieldLabel(label, key, required)}
       {languages.map((language) => (
         <div className={`localized-row ${language !== sourceLanguage ? 'with-retranslate' : ''}`} key={`${language}-${key}`}>
           <select value={language} disabled><option>{languageLabels[language]}</option></select>
           {multiline
             ? <textarea value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder={`${languageLabels[language]} ${label}`} />
           : <input value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder={`${languageLabels[language]} ${label}`} />}
-          {colorControl(language, key)}
-          {fontSizeControl(language, key)}
           {language !== sourceLanguage && <button className="retranslate-button" onClick={() => retranslate(language, label, String(selected.content[sourceLanguage].config[key] ?? ''), (value) => updateConfig(language, key, value))}>重译</button>}
           {language !== 'English' && <button className="row-remove" onClick={() => updateConfig(language, key, '')} title="清空该语言内容"><X size={15} /></button>}
         </div>
@@ -881,7 +883,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
   }
   const pollOptionRows = () => (
     <section className="localized-field">
-      <div className="localized-field-label"><span className="required-mark">*</span>投票选项</div>
+      {styledFieldLabel('投票选项', 'pollOptions', true, '#934741')}
       {languages.map((language) => {
         const options = selected.content[language].config.pollOptions ?? []
         return <div className="poll-option-editor" key={`${language}-poll-options`}>
@@ -891,8 +893,6 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
               <span className="option-order">选项 {index + 1}</span>
               <input value={option.label} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} placeholder="输入选项文案" />
               <input value={option.image} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="选项图片链接（可选）" />
-              {colorControl(language, 'pollOptions', '#934741')}
-              {fontSizeControl(language, 'pollOptions')}
               <button className="row-remove" onClick={() => updatePollOptions(language, options.filter((_, itemIndex) => itemIndex !== index))} title="删除选项"><X size={15} /></button>
             </div>
           ))}
@@ -904,21 +904,15 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
 
   const structuredRows = (label: string, key: keyof ModuleConfig, columns: string[]) => (
     <section className="localized-field">
-      <div className="localized-field-label"><span className="required-mark">*</span>{label}</div>
+      <div className="localized-field-label with-style-controls"><span><span className="required-mark">*</span>{label}</span><span className="field-style-controls structured-style-controls">{columns.map((column, columnIndex) => {
+        const field = `structured:${String(key)}:${columnIndex}` as StyleField
+        return <span className="structured-style-control" key={column}><em>{column}</em>{colorControl(field, columnIndex === 0 ? '#2b2624' : '#987c6d')}{fontSizeControl(field)}</span>
+      })}</span></div>
       {languages.map((language) => {
         const rows = String(selected.content[language].config[key] ?? '').split('\n').filter(Boolean).map((item) => item.split('｜'))
         const updateRows = (nextRows: string[][]) => updateConfig(language, key, nextRows.map((row) => row.join('｜')).join('\n'))
-        const columnColorFallback = (columnIndex: number) => {
-          if (selected.kind === 'cast') return columnIndex === 0 ? '#2b2624' : '#987c6d'
-          if (selected.kind === 'ranking') return columnIndex === 0 ? '#fff' : '#ffdcba'
-          if (selected.kind === 'topic') return columnIndex === 0 ? '#2b2624' : '#87756b'
-          return '#1f2329'
-        }
         return <div className="structured-editor" key={`${language}-${key}`}>
-          <div className="structured-head"><b>{languageLabels[language]}</b><div className="structured-style-controls">{columns.map((column, columnIndex) => {
-            const field = `structured:${String(key)}:${columnIndex}` as StyleField
-            return <span className="structured-style-control" key={column}><em>{column}</em>{colorControl(language, field, columnColorFallback(columnIndex))}{fontSizeControl(language, field)}</span>
-          })}</div></div>
+          <div className="structured-head"><b>{languageLabels[language]}</b></div>
           {rows.map((row, rowIndex) => (
             <div className="structured-item" key={`${language}-${key}-${rowIndex}`}>
               <span>{rowIndex + 1}</span>
@@ -963,7 +957,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
 
   const clipResourceRows = () => (
     <section className="localized-field">
-      <div className="localized-field-label"><span className="required-mark">*</span>剧情切片列表</div>
+      {styledFieldLabel('剧情切片列表', 'items', true, '#fff')}
       {languages.map((language) => {
         const content = selected.content[language]
         const names = String(content.config.items ?? '').split('\n').filter(Boolean)
@@ -978,7 +972,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           })
         }
         return <div className="clip-resource-editor" key={`${language}-clip-resources`}>
-          <div className="structured-head"><b>{languageLabels[language]}</b><span>{colorControl(language, 'items', '#fff')}{fontSizeControl(language, 'items')}</span></div>
+          <div className="structured-head"><b>{languageLabels[language]}</b></div>
           {resources.map((resource, index) => (
             <div className="clip-resource-item" key={`${language}-clip-${index}`}>
               <span>{index + 1}</span>
@@ -1012,6 +1006,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
           <button className="secondary add-option" onClick={() => updatePosters([...posters, { date: '', image: '' }])}><Plus size={15} /> 添加海报日期</button>
         </div>
       })}
+      {localizedActions('checkin-posters')}
     </section>
   )
 
@@ -1053,29 +1048,24 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       </section>}
       <section className="localized-field">
         <div className="localized-field-label">模块背景</div>
-        {languages.map((language) => (
-          <div className="localized-row style-row" key={`${language}-background-color`}>
-            <select value={language} disabled><option>{languageLabels[language]}</option></select>
-            <input value={selected.content[language].style?.backgroundColor ?? defaultContentStyle.backgroundColor} onFocus={() => onFocusPreviewField(language, 'background')} onChange={(event) => updateBackgroundColor(language, event.target.value)} />
-            <label className="field-color" title="模块背景色"><input type="color" value={selected.content[language].style?.backgroundColor ?? defaultContentStyle.backgroundColor} onFocus={() => onFocusPreviewField(language, 'background')} onChange={(event) => updateBackgroundColor(language, event.target.value)} /></label>
-          </div>
-        ))}
+        <div className="module-background-color">
+          <input value={selected.style.backgroundColor} onFocus={() => onFocusPreviewField(sourceLanguage, 'background')} onChange={(event) => updateBackgroundColor(event.target.value)} />
+          <label className="field-color" title="模块背景色"><input type="color" value={selected.style.backgroundColor} onFocus={() => onFocusPreviewField(sourceLanguage, 'background')} onChange={(event) => updateBackgroundColor(event.target.value)} /></label>
+        </div>
         <div className="localized-field-note">可同时设置背景色与背景图片，图片覆盖在颜色之上。</div>
         {languages.map(backgroundImageRow)}
       </section>
       {selected.kind !== 'hero' && <section className="localized-field">
-        <div className="localized-field-label">标题</div>
+        {styledFieldLabel('标题', 'title', false, selected.titleColor)}
         {languages.map(titleRow)}
         {localizedActions('title')}
       </section>}
       {selected.kind !== 'hero' && <section className="localized-field">
-        <div className="localized-field-label">副标题</div>
+        {styledFieldLabel('副标题', 'subtitle', false, '#9a8174')}
         {languages.map((language) => (
           <div className={`localized-row ${language !== sourceLanguage ? 'with-retranslate' : ''}`} key={`${language}-subtitle`}>
             <select value={language} disabled><option>{languageLabels[language]}</option></select>
             <input value={selected.content[language].subtitle} onFocus={() => onFocusPreviewField(language, 'subtitle')} onChange={(event) => updateContent(language, { subtitle: event.target.value })} placeholder={`${languageLabels[language]} 副标题`} />
-            {colorControl(language, 'subtitle', '#9a8174')}
-            {fontSizeControl(language, 'subtitle')}
             {language !== sourceLanguage && <button className="retranslate-button" onClick={() => retranslate(language, 'subtitle', selected.content[sourceLanguage].subtitle, (value) => updateContent(language, { subtitle: value }))}>重译</button>}
             {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { subtitle: '' })} title="清空该语言副标题"><X size={15} /></button>}
           </div>
@@ -1118,7 +1108,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
   const isFocused = (module: PageModule, field: PreviewFocus['field']) => focus?.moduleId === module.id && focus.language === language && focus.field === field
   const isImageFocused = (module: PageModule) => focus?.moduleId === module.id && focus.language === language && focus.field.startsWith('image:')
   const previewTextStyle = (module: PageModule, field: StyleField, fallback: string) => {
-    const style = getContent(module)?.style
+    const style = module.style
     const fontSize = style?.fontSizes[field]
     return { color: style?.textColors[field] ?? fallback, ...(fontSize ? { fontSize: `${fontSize}px` } : {}) }
   }
@@ -1126,9 +1116,9 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
     const content = getContent(module)
     const primaryAsset = imageSlots[module.kind][0]?.key
     return {
-      '--module-bg': content?.style?.backgroundColor ?? defaultContentStyle.backgroundColor,
-      '--module-title': content?.style?.textColors.title ?? module.titleColor,
-      '--module-subtitle': content?.style?.textColors.subtitle ?? '#9a8174',
+      '--module-bg': module.style.backgroundColor,
+      '--module-title': module.style.textColors.title ?? module.titleColor,
+      '--module-subtitle': module.style.textColors.subtitle ?? '#9a8174',
       '--module-art': primaryAsset && getImage(module, primaryAsset) ? `url("${getImage(module, primaryAsset)}")` : 'none',
       '--module-background-image': content?.background ? `url("${content.background}")` : 'none',
     } as React.CSSProperties
@@ -1193,8 +1183,8 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
 function PhoneModule({ module, content, language, state, setState, flash, focusField }: { module: PageModule; content: LocalizedContent; language: Language; state: PreviewState; setState: (value: PreviewState) => void; flash: (value: string) => void; focusField: PreviewFocus['field'] | null }) {
   const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
   const fieldStyle = (field: StyleField, fallback: string) => {
-    const fontSize = content.style?.fontSizes[field]
-    return { color: content.style?.textColors[field] ?? fallback, ...(fontSize ? { fontSize: `${fontSize}px` } : {}) }
+    const fontSize = module.style.fontSizes[field]
+    return { color: module.style.textColors[field] ?? fallback, ...(fontSize ? { fontSize: `${fontSize}px` } : {}) }
   }
   const fieldClass = (field: PreviewFocus['field'], className = '') => `${className} ${focusField === field ? 'preview-field-highlight' : ''}`.trim()
   const assetStyle = (key: string) => ({ '--asset-image': content.images?.[key] ? `url("${content.images[key]}")` : 'none' } as React.CSSProperties)

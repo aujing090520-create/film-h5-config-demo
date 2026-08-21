@@ -159,7 +159,11 @@
 .advanced-condition-button { display: inline-flex; align-items: center; justify-content: center; min-width: 112px; height: 32px; padding: 0 12px; color: #fff; border-radius: 6px; background: #1677d2; box-shadow: 0 1px 2px rgba(22, 119, 210, .12); font-size: 12px; font-weight: 600; }
 .field-row .toggle-field .switch i { top: 3px; right: 3px; left: auto; width: 18px; height: 18px; border: 0; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 .field-row .toggle-field .switch.off i { right: auto; left: 3px; }
-.localized-row.with-retranslate { grid-template-columns: 132px minmax(0, 1fr) 34px 54px 48px 28px; }
+.localized-field-label.with-style-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.field-style-controls { display: inline-flex; align-items: center; gap: 6px; }
+.module-background-color { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 8px; align-items: center; }
+.localized-row.with-retranslate { grid-template-columns: 132px minmax(0, 1fr) 48px 28px; }
+.poll-option-editor .localized-row { grid-template-columns: 48px minmax(96px, 1fr) minmax(130px, 1.25fr) 28px; }
 .retranslate-button { height: 30px; padding: 0 7px; color: #1677d2; border: 0; border-radius: 4px; background: transparent; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .retranslate-button:hover { background: #edf6ff; }
 .phone-module:not(.module-hero) { background-image: linear-gradient(rgba(255,255,255,.82), rgba(255,255,255,.82)), var(--module-background-image, none); background-position: center; background-size: cover; }
