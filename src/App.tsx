@@ -199,10 +199,6 @@ const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
   live: { label: '直播区（已有）', fr: 'FR-14', displayIndex: '', content: { title: '正在直播', subtitle: '', background: '', config: { items: '长安花笺 主创见面会\n演员在线聊幕后' } }, english: { title: 'Live now', subtitle: '', background: '', config: { items: 'Letters of Chang’an cast meet-up\nCast talks about the scenes' } } },
 }
 
-moduleDefinitions.cast.content.config.moreLabel = '更多'
-moduleDefinitions.cast.english.config.moreLabel = 'More'
-moduleDefinitions.cast.content.config.aggregateTitle = '全部演员'
-moduleDefinitions.cast.english.config.aggregateTitle = 'All cast'
 moduleDefinitions.clips.content.config.moreLabel = '更多'
 moduleDefinitions.clips.english.config.moreLabel = 'More'
 moduleDefinitions.clips.content.config.aggregateTitle = '全部精彩切片'
@@ -1028,7 +1024,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     <>
       {selected.kind === 'hero' && <>{textRows('签到按钮文案', 'cta')}{textRows('签到页标题', 'checkinTitle')}{textRows('签到页说明', 'checkinHint')}{checkinPosterRows()}</>}
       {selected.kind === 'info' && <>{textRows('剧集名称', 'name', false, true)}{infoTagRows()}{textRows('剧情简介', 'intro', true)}</>}
-      {selected.kind === 'cast' && <>{structuredRows('演员列表', 'items', ['演员名', '角色名'])}{textRows('更多入口文案', 'moreLabel')}{textRows('演员聚合页标题', 'aggregateTitle')}{aggregateImageRows('cast')}</>}
+      {selected.kind === 'cast' && structuredRows('演员列表', 'items', ['演员名', '角色名'])}
       {selected.kind === 'clips' && <>{clipResourceRows()}{textRows('更多入口文案', 'moreLabel')}{textRows('切片聚合页标题', 'aggregateTitle')}{aggregateImageRows('clips')}</>}
       {selected.kind === 'poll' && <>{textRows('投票题目', 'question', false, true)}{pollOptionRows()}{textRows('投票说明', 'helper')}</>}
       {selected.kind === 'ranking' && <>{structuredRows('排行榜角色', 'items', ['角色名', '热力值'])}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
@@ -1110,6 +1106,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
   const clips = modules.find((item) => item.kind === 'clips')
   const ranking = modules.find((item) => item.kind === 'ranking')
   const selectedModule = modules.find((item) => item.id === selectedId)
+  const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
   // Preview only reads the selected language. Missing localized data must stay empty.
   const getContent = (module: PageModule | undefined) => module?.content[language]
   const getImage = (module: PageModule | undefined, key: string) => getContent(module)?.images?.[key] ?? ''
@@ -1164,7 +1161,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
         <b>{selectedModule ? `${selectedModule.fr} · ${selectedModule.label}` : '未选择模块'}</b>
       </div>
       <div className="h5-scroll" ref={scrollRef}>
-        {state.screen === 'cast' ? <OverlayScreen title={getContent(cast)?.config.aggregateTitle || getContent(cast)?.title || ''} onClose={() => setState({ ...state, screen: '' })} list={castList} images={imageSlots.cast.map((slot) => getImage(cast, slot.key))} background={getImage(cast, 'cast-aggregate')} /> : null}
+        {state.screen === 'cast' ? <OverlayScreen title={isChinese ? '全部演员' : 'All cast'} onClose={() => setState({ ...state, screen: '' })} list={castList} images={castList.map((_, index) => getImage(cast, `cast-${(index % imageSlots.cast.length) + 1}`))} /> : null}
         {state.screen === 'clips' ? <OverlayScreen title={getContent(clips)?.config.aggregateTitle || getContent(clips)?.title || ''} onClose={() => setState({ ...state, screen: '' })} list={clipList} images={clipList.map((_, index) => getImage(clips, `clip-${index + 1}`))} links={clipLinks} background={getImage(clips, 'clips-aggregate')} /> : null}
         {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} entries={splitLines(getContent(ranking)?.config.items).map((item) => item.split('｜'))} images={imageSlots.ranking.map((slot) => getImage(ranking, slot.key))} background={getImage(ranking, 'ranking-aggregate')} onSelect={(name, heat) => setState({ ...state, screen: '', rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
         {state.screen === 'checkin' ? <CheckinScreen onClose={() => setState({ ...state, screen: '' })} content={getContent(modules.find((item) => item.kind === 'hero'))!} language={language} /> : null}
@@ -1178,7 +1175,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
           >
             {module.id === selectedId && <span className="preview-module-marker">当前配置</span>}
             {review && <button className="fr-badge" onClick={(event) => { event.stopPropagation(); onSelectModule(module.id) }}>{module.fr}</button>}
-            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{['cast', 'clips', 'ranking'].includes(module.kind) && <button className={isFocused(module, 'moreLabel') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'moreLabel', '#8b807a')} onClick={(e) => { e.stopPropagation(); setState({ ...state, screen: module.kind === 'cast' ? 'cast' : module.kind === 'clips' ? 'clips' : 'ranking' }) }}>{getContent(module)?.config.moreLabel}</button>}</div>}
+            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{(module.kind === 'cast' ? splitLines(getContent(module)?.config.items).length > 4 : ['clips', 'ranking'].includes(module.kind)) && <button className={isFocused(module, 'moreLabel') ? 'preview-field-highlight' : ''} style={module.kind === 'cast' ? undefined : previewTextStyle(module, 'moreLabel', '#8b807a')} onClick={(e) => { e.stopPropagation(); setState({ ...state, screen: module.kind === 'cast' ? 'cast' : module.kind === 'clips' ? 'clips' : 'ranking' }) }}>{module.kind === 'cast' ? (isChinese ? '更多' : 'More') : getContent(module)?.config.moreLabel}</button>}</div>}
             <PhoneModule module={module} content={getContent(module)!} language={language} state={state} setState={setState} flash={flash} focusField={focus?.moduleId === module.id && focus.language === language ? focus.field : null} />
           </div>
         ))}
@@ -1217,7 +1214,7 @@ function PhoneModule({ module, content, language, state, setState, flash, focusF
     case 'info':
       return <div className="info-card"><div className={fieldClass('image:poster', 'poster-tile')} style={assetStyle('poster')} /><div className="info-copy"><h2 className={fieldClass('name')} style={fieldStyle('name', '#2b2624')}>{content.config.name}</h2><div className="info-tags">{[...new Set(infoTags.map((tag) => tag.row))].map((row) => <div className="info-tag-row" key={row}>{infoTags.filter((tag) => tag.row === row).map((tag) => <span className={fieldClass(`tag:${tag.id}`, 'info-tag')} style={{ color: tag.color, fontSize: `${tag.fontSize}px` }} key={tag.id}>{tag.text}</span>)}</div>)}</div></div><p className={fieldClass('intro', 'info-intro')} style={fieldStyle('intro', '#564741')}>{content.config.intro}</p></div>
     case 'cast':
-      return <div className="cast-strip">{castEntries.map(([name, role], i) => <div className="cast-person" key={`${name}-${i}`}><div className={fieldClass(`image:cast-${i + 1}`, 'portrait')} style={assetStyle(`cast-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#2b2624')}>{name}</b><span className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#987c6d')}>{role}</span></div>)}</div>
+      return <div className="cast-strip">{castEntries.slice(0, 4).map(([name, role], i) => <div className="cast-person" key={`${name}-${i}`}><div className={fieldClass(`image:cast-${i + 1}`, 'portrait')} style={assetStyle(`cast-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#2b2624')}>{name}</b><span className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#987c6d')}>{role}</span></div>)}</div>
     case 'clips':
       return <div className="clips-row">{clipEntries.slice(0, 3).map((name, i) => <button className={`${fieldClass(`image:clip-${i + 1}`, 'clip-card')} ${fieldClass('links')}`} style={assetStyle(`clip-${i + 1}`)} key={`${name}-${i}`} onClick={(e) => { e.stopPropagation(); const link = clipLinks[i]?.trim(); if (link) window.open(link, '_blank', 'noopener,noreferrer'); else flash(isChinese ? '请先配置跳转链接' : 'Add a destination link first') }}><b className={fieldClass('items')} style={fieldStyle('items', '#fff')}>{name}</b></button>)}</div>
     case 'poll': {
