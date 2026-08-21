@@ -197,7 +197,7 @@ const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
   cast: { label: '演员区', fr: 'FR-03', displayIndex: '02', content: { title: '演员区', subtitle: '', background: '', config: { items: '洛瑶｜饰 宁安\n沈砚舟｜饰 李承槐\n许清晏｜饰 谢长宁\n温言｜饰 南宫月' } }, english: { title: 'Cast', subtitle: '', background: '', config: { items: 'Luo Yao｜as Ning An\nShen Yanzhou｜as Li Chenghuai\nXu Qingyan｜as Xie Changning\nWen Yan｜as Nangong Yue' } } },
   clips: { label: '剧情切片工厂', fr: 'FR-04', displayIndex: '03', content: { title: '剧情切片工厂', subtitle: '', background: '', config: { items: '雨夜执伞\n花笺密令\n初见如故', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } }, english: { title: 'Scene clips', subtitle: '', background: '', config: { items: 'An umbrella in the rain\nThe secret letter\nLove at first sight', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } } },
   poll: { label: '阵营选择', fr: 'FR-05', displayIndex: '04', content: { title: '阵营选择', subtitle: '', background: '', config: { question: '你更期待谁先揭开花笺密令？', pollOptions: [{ label: '沈砚舟', image: '/film-assets/rank-2.png' }, { label: '洛瑶', image: '/film-assets/rank-1.png' }], helper: '截止 2026/09/20 · 12.8 万人参与' } }, english: { title: 'Choose a side', subtitle: '', background: '', config: { question: 'Who do you want to uncover the secret letter first?', pollOptions: [{ label: 'Shen Yanzhou', image: '/film-assets/rank-2.png' }, { label: 'Luo Yao', image: '/film-assets/rank-1.png' }], helper: 'Ends Sep 20, 2026 · 128K joined' } } },
-  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜饰 宁安｜长安花笺\n沈砚舟｜饰 李承槐｜长安花笺\n许清晏｜饰 谢长宁｜长安花笺', tasks: '每日签到｜+20\n带 #沈砚舟# 发帖｜+50\n去演员圈讨论｜+30\n去剧圈讨论｜+30', aggregateTitle: '完整人气榜', moreLabel: '查看完整榜单' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜as Ning An｜Letters of Chang’an\nShen Yanzhou｜as Li Chenghuai｜Letters of Chang’an\nXu Qingyan｜as Xie Changning｜Letters of Chang’an', tasks: 'Daily check-in｜+20\nPost with #ShenYanzhou#｜+50\nDiscuss in the cast circle｜+30\nDiscuss in the series circle｜+30', aggregateTitle: 'Full popularity ranking', moreLabel: 'View full ranking' } } },
+  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜饰 宁安｜长安花笺\n沈砚舟｜饰 李承槐｜长安花笺\n许清晏｜饰 谢长宁｜长安花笺', tasks: 'task-1｜每日签到｜+20｜\ntask-2｜带 #沈砚舟# 发帖｜+50｜https://www.hellotalk.com/moments\ntask-3｜去演员圈讨论｜+30｜https://www.hellotalk.com/moments\ntask-4｜去剧圈讨论｜+30｜https://www.hellotalk.com/moments', aggregateTitle: '完整人气榜', moreLabel: '查看完整榜单' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜as Ning An｜Letters of Chang’an\nShen Yanzhou｜as Li Chenghuai｜Letters of Chang’an\nXu Qingyan｜as Xie Changning｜Letters of Chang’an', tasks: 'task-1｜Daily check-in｜+20｜\ntask-2｜Post with #ShenYanzhou#｜+50｜https://www.hellotalk.com/moments\ntask-3｜Discuss in the cast circle｜+30｜https://www.hellotalk.com/moments\ntask-4｜Discuss in the series circle｜+30｜https://www.hellotalk.com/moments', aggregateTitle: 'Full popularity ranking', moreLabel: 'View full ranking' } } },
   banner: { label: 'Banner 广告跳转区', fr: 'FR-10', displayIndex: '', content: { title: '', subtitle: '', background: '', config: {} }, english: { title: '', subtitle: '', background: '', config: {} } },
   topic: { label: '话题区发帖（已有）', fr: 'FR-11', displayIndex: '', content: { title: '热门话题', subtitle: '', background: '', config: { items: '#长安花笺#｜此刻正在讨论这场雨夜初见\n#沈砚舟#｜和剧友聊聊你的角色选择\n#花笺密令#｜和剧友聊聊你的角色选择' } }, english: { title: 'Trending topics', subtitle: '', background: '', config: { items: '#LettersOfChangan#｜Talk about their first meeting in the rain\n#ShenYanzhou#｜Share your character choice with fans\n#SecretLetter#｜Talk with fans about the series' } } },
   posts: { label: '最佳帖文（已有）', fr: 'FR-12', displayIndex: '', content: { title: '最佳帖文', subtitle: '', background: '', config: { items: '花灯下的心动瞬间\n花灯亮起的那一刻，突然理解了他们的选择。' } }, english: { title: 'Best posts', subtitle: '', background: '', config: { items: 'A heartbeat under lanterns\nWhen the lanterns lit up, I finally understood their choice.' } } },
@@ -1025,6 +1025,38 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     </section>
   )
 
+  const rankingTaskRows = () => {
+    const taskTypes = [
+      ['task-1', '任务 1：签到'],
+      ['task-2', '任务 2：带话题发帖'],
+      ['task-3', '任务 3：去演员圈子讨论'],
+      ['task-4', '任务 4：去剧圈子讨论'],
+    ] as const
+    return <section className="localized-field">
+      <div className="localized-field-label"><span className="required-mark">*</span>助力任务列表</div>
+      {languages.map((language) => {
+        const content = selected.content[language]
+        const parsed = String(content.config.tasks ?? '').split('\n').filter(Boolean).map((item, index) => {
+          const values = item.split('｜')
+          return values[0]?.startsWith('task-') ? { id: values[0], text: values[1] ?? '', reward: values[2] ?? '', link: values[3] ?? '' } : { id: `task-${index + 1}`, text: values[0] ?? '', reward: values[1] ?? '', link: values[2] ?? '' }
+        })
+        const tasks = taskTypes.map(([id]) => parsed.find((task) => task.id === id) ?? { id, text: '', reward: '', link: '' })
+        const updateTasks = (nextTasks: typeof tasks) => updateConfig(language, 'tasks', nextTasks.map((task) => [task.id, task.text, task.reward, task.id === 'task-1' ? '' : task.link].join('｜')).join('\n'))
+        return <div className="ranking-task-editor" key={`${language}-ranking-tasks`}>
+          <div className="structured-head"><b>{languageLabels[language]}</b><span>预设四个任务，热力奖励由配置决定</span></div>
+          {tasks.map((task, index) => <div className="ranking-task-item" key={`${language}-${task.id}`}>
+            <span>{index + 1}</span>
+            <label>任务类型<select value={task.id} onChange={(event) => updateTasks(tasks.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item))}>{taskTypes.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+            <label>外显文案<input value={task.text} onFocus={() => onFocusPreviewField(language, 'tasks')} onChange={(event) => updateTasks(tasks.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} /></label>
+            <label>热力奖励<input value={task.reward} onFocus={() => onFocusPreviewField(language, 'tasks')} onChange={(event) => updateTasks(tasks.map((item, itemIndex) => itemIndex === index ? { ...item, reward: event.target.value } : item))} /></label>
+            {task.id !== 'task-1' && <label>跳转链接<input type="url" value={task.link} onFocus={() => onFocusPreviewField(language, 'tasks')} onChange={(event) => updateTasks(tasks.map((item, itemIndex) => itemIndex === index ? { ...item, link: event.target.value } : item))} placeholder="https://" /></label>}
+          </div>)}
+        </div>
+      })}
+      {localizedActions('ranking-tasks')}
+    </section>
+  }
+
   const checkinPosterRows = () => (
     <section className="localized-field">
       <div className="localized-field-label">签到海报日历</div>
@@ -1062,7 +1094,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       {selected.kind === 'cast' && structuredRows('演员列表', 'items', ['演员名', '角色名'])}
       {selected.kind === 'clips' && clipResourceRows()}
       {selected.kind === 'poll' && <>{textRows('投票题目', 'question', false, true)}{pollOptionRows()}{textRows('投票说明', 'helper')}</>}
-      {selected.kind === 'ranking' && <>{rankingRoleRows()}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
+      {selected.kind === 'ranking' && <>{rankingRoleRows()}{rankingTaskRows()}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
       {selected.kind === 'banner' && linkRows('跳转链接', 'ctaLink')}
       {selected.kind === 'topic' && <>{structuredRows('话题列表', 'items', ['话题', '话题说明'])}{textRows('主操作文案', 'cta')}{linkRows('主操作跳转链接', 'ctaLink')}{textRows('次操作文案', 'secondaryCta')}{linkRows('次操作跳转链接', 'secondaryCtaLink')}</>}
       {selected.kind === 'posts' && textRows('展示帖文', 'items', true)}
@@ -1292,11 +1324,14 @@ function RankingBoard({ title, onClose, roles, background, onSelect, cta }: { ti
 
 function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: { onClose: () => void; name: string; heat: string; tasks: string | undefined; language: Language; highlightTasks: boolean }) {
   const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
-  const taskEntries = (tasks?.split('\n').filter(Boolean) ?? []).map((item) => item.split('｜'))
+  const taskEntries = (tasks?.split('\n').filter(Boolean) ?? []).map((item, index) => {
+    const values = item.split('｜')
+    return values[0]?.startsWith('task-') ? [values[0], values[1] ?? '', values[2] ?? '', values[3] ?? ''] : [`task-${index + 1}`, values[0] ?? '', values[1] ?? '', values[2] ?? '']
+  })
   const copy = isChinese
     ? { close: '关闭榜单任务', support: '助力', character: '角色', current: '当前角色热力值', total: '个人累计贡献', rank: '个人贡献排名', heading: '完成任务，为他增加热力值' }
     : { close: 'Close ranking tasks', support: 'Support', character: 'character', current: 'Current popularity', total: 'Your total contribution', rank: 'Your contribution rank', heading: 'Complete tasks to add popularity' }
-  return <div className="phone-sheet"><div className="sheet-scrim" onClick={onClose} /><div className="sheet-content"><button className="sheet-close" onClick={onClose} aria-label={copy.close}><X size={18} /></button><div className="sheet-profile"><div className="small-rank-face" /><div><b>{copy.support} {name || copy.character}</b><span>{copy.current} {heat || '0'}</span></div></div><div className="contribution"><div><span>{copy.total}</span><b>180</b></div><div><span>{copy.rank}</span><b>NO. 125</b></div></div><h3>{copy.heading}</h3>{taskEntries.map(([task, reward, link], i) => <button className={`task-row ${highlightTasks ? 'preview-field-highlight' : ''}`} key={`${task}-${i}`} onClick={() => { if (link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer') }}><span className={`task-icon ti${(i % 4) + 1}`}>{i + 1}</span><b>{task}</b><em>{reward || '+0'}</em><ChevronRight size={16} /></button>)}</div></div>
+  return <div className="phone-sheet"><div className="sheet-scrim" onClick={onClose} /><div className="sheet-content"><button className="sheet-close" onClick={onClose} aria-label={copy.close}><X size={18} /></button><div className="sheet-profile"><div className="small-rank-face" /><div><b>{copy.support} {name || copy.character}</b><span>{copy.current} {heat || '0'}</span></div></div><div className="contribution"><div><span>{copy.total}</span><b>180</b></div><div><span>{copy.rank}</span><b>NO. 125</b></div></div><h3>{copy.heading}</h3>{taskEntries.map(([id, task, reward, link], i) => <button className={`task-row ${highlightTasks ? 'preview-field-highlight' : ''}`} key={`${id}-${i}`} onClick={() => { if (id !== 'task-1' && link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer') }}><span className={`task-icon ti${(i % 4) + 1}`}>{i + 1}</span><b>{task}</b><em>{reward || '+0'}</em>{id !== 'task-1' && <ChevronRight size={16} />}</button>)}</div></div>
 }
 
 function OverlayScreen({ title, list, onClose, images, links = [], background = '' }: { title: string; list: string[]; onClose: () => void; images: string[]; links?: string[]; background?: string }) {
