@@ -8,7 +8,6 @@ import {
   CircleHelp,
   Clipboard,
   Copy,
-  ExternalLink,
   Film,
   GripVertical,
   Image,
@@ -24,8 +23,6 @@ import {
   X,
 } from 'lucide-react'
 import './App.css'
-
-const referenceImage = '/film-reference.png'
 
 type ModuleKind =
   | 'hero'
@@ -77,6 +74,22 @@ type InfoTag = {
   fontSize: number
 }
 
+type PollOption = {
+  label: string
+  image: string
+}
+
+type CheckinPoster = {
+  date: string
+  image: string
+}
+
+type ModuleCondition = {
+  enabled: boolean
+  regions: string
+  audience: string
+}
+
 type ModuleConfig = {
   name?: string
   intro?: string
@@ -90,7 +103,11 @@ type ModuleConfig = {
   schedule?: string
   helper?: string
   body?: string
-  pollOptions?: string[]
+  pollOptions?: PollOption[]
+  checkinTitle?: string
+  checkinHint?: string
+  checkinPosters?: CheckinPoster[]
+  aggregateTitle?: string
   moreLabel?: string
   moreLink?: string
   secondaryCta?: string
@@ -100,7 +117,7 @@ type ModuleConfig = {
 }
 
 type DisplayField = keyof ModuleConfig | 'title' | 'subtitle'
-type TextConfigKey = Exclude<keyof ModuleConfig, 'infoTags' | 'pollOptions'>
+type TextConfigKey = Exclude<keyof ModuleConfig, 'infoTags' | 'pollOptions' | 'checkinPosters'>
 type StyleField = DisplayField | `structured:${string}:${number}`
 
 type ContentStyle = {
@@ -126,6 +143,7 @@ type PageModule = {
   displayIndex: string
   titleColor: string
   enabled: boolean
+  condition: ModuleCondition
   content: Record<Language, LocalizedContent>
 }
 
@@ -152,7 +170,7 @@ const imageSlots: Record<ModuleKind, { key: string; label: string }[]> = {
   clips: ['切片 1', '切片 2', '切片 3'].map((label, index) => ({ key: `clip-${index + 1}`, label })),
   poll: [],
   ranking: ['榜单角色 1', '榜单角色 2', '榜单角色 3'].map((label, index) => ({ key: `rank-${index + 1}`, label })),
-  banner: [],
+  banner: [{ key: 'banner', label: 'Banner 图' }],
   topic: ['话题 1', '话题 2', '话题 3'].map((label, index) => ({ key: `topic-${index + 1}`, label })),
   posts: ['帖文 1', '帖文 2'].map((label, index) => ({ key: `post-${index + 1}`, label })),
   voice: [],
@@ -166,7 +184,7 @@ const defaultModuleImages: Record<ModuleKind, Record<string, string>> = {
   clips: Object.fromEntries([1, 2, 3].map((index) => [`clip-${index}`, `/film-assets/clip-${index}.png`])),
   poll: {},
   ranking: Object.fromEntries([1, 2, 3].map((index) => [`rank-${index}`, `/film-assets/rank-${index}.png`])),
-  banner: {},
+  banner: { banner: '/film-assets/hero-keyart.png' },
   topic: Object.fromEntries([1, 2, 3].map((index) => [`topic-${index}`, `/film-assets/topic-${index}.png`])),
   posts: Object.fromEntries([1, 2].map((index) => [`post-${index}`, `/film-assets/post-${index}.png`])),
   voice: {},
@@ -174,13 +192,13 @@ const defaultModuleImages: Record<ModuleKind, Record<string, string>> = {
 }
 
 const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
-  hero: { label: '头图', fr: 'FR-01', displayIndex: '', content: { title: '', subtitle: '', background: '', config: { name: '长安花笺', cta: '立即追剧', metadata: '8月9日看', schedule: '正在热播 · 2026' } }, english: { title: '', subtitle: '', background: '', config: { name: "Letters of Chang'an", cta: 'Watch now', metadata: 'Premiering Aug 9', schedule: 'Now streaming · 2026' } } },
+  hero: { label: '头图', fr: 'FR-01', displayIndex: '', content: { title: '', subtitle: '', background: '', config: { name: '长安花笺', cta: '立即签到', metadata: '8月9日看', schedule: '正在热播 · 2026', checkinTitle: '长安花笺签到日历', checkinHint: '连续签到，解锁限定海报', checkinPosters: [{ date: '09', image: '/film-assets/clip-1.png' }, { date: '10', image: '/film-assets/clip-2.png' }, { date: '14', image: '/film-assets/clip-3.png' }] } }, english: { title: '', subtitle: '', background: '', config: { name: "Letters of Chang'an", cta: 'Check in', metadata: 'Premiering Aug 9', schedule: 'Now streaming · 2026', checkinTitle: 'Letters of Chang’an calendar', checkinHint: 'Check in to unlock limited posters', checkinPosters: [{ date: '09', image: '/film-assets/clip-1.png' }, { date: '10', image: '/film-assets/clip-2.png' }, { date: '14', image: '/film-assets/clip-3.png' }] } } },
   info: { label: '影视信息区', fr: 'FR-02', displayIndex: '01', content: { title: '剧情简介', subtitle: '', background: '', config: { name: '长安花笺', intro: '出身书香门第的花笺为守护家族与心中正义，卷入朝堂纷争。', infoTags: defaultInfoTags('Chinese') } }, english: { title: 'About the series', subtitle: '', background: '', config: { name: 'Letters of Chang’an', intro: 'Hua Jian is drawn into court intrigue as she protects her family and the justice she believes in.', infoTags: defaultInfoTags('English') } } },
   cast: { label: '演员区', fr: 'FR-03', displayIndex: '02', content: { title: '演员区', subtitle: '', background: '', config: { items: '洛瑶｜饰 宁安\n沈砚舟｜饰 李承槐\n许清晏｜饰 谢长宁\n温言｜饰 南宫月' } }, english: { title: 'Cast', subtitle: '', background: '', config: { items: 'Luo Yao｜as Ning An\nShen Yanzhou｜as Li Chenghuai\nXu Qingyan｜as Xie Changning\nWen Yan｜as Nangong Yue' } } },
   clips: { label: '剧情切片工厂', fr: 'FR-04', displayIndex: '03', content: { title: '剧情切片工厂', subtitle: '', background: '', config: { items: '雨夜执伞\n花笺密令\n初见如故', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } }, english: { title: 'Scene clips', subtitle: '', background: '', config: { items: 'An umbrella in the rain\nThe secret letter\nLove at first sight', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } } },
-  poll: { label: '阵营选择', fr: 'FR-05', displayIndex: '04', content: { title: '阵营选择', subtitle: '', background: '', config: { question: '你更期待谁先揭开花笺密令？', pollOptions: ['沈砚舟', '洛瑶'], helper: '截止 2026/09/20 · 12.8 万人参与' } }, english: { title: 'Choose a side', subtitle: '', background: '', config: { question: 'Who do you want to uncover the secret letter first?', pollOptions: ['Shen Yanzhou', 'Luo Yao'], helper: 'Ends Sep 20, 2026 · 128K joined' } } },
-  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜11.1万\n沈砚舟｜24.8万\n许清晏｜11.0万', tasks: '每日签到｜+20\n带 #沈砚舟# 发帖｜+50\n去演员圈讨论｜+30\n去剧圈讨论｜+30' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜111K\nShen Yanzhou｜248K\nXu Qingyan｜110K', tasks: 'Daily check-in｜+20\nPost with #ShenYanzhou#｜+50\nDiscuss in the cast circle｜+30\nDiscuss in the series circle｜+30' } } },
-  banner: { label: 'Banner 广告跳转区', fr: 'FR-10', displayIndex: '', content: { title: '', subtitle: '', background: '', config: { name: 'HelloTalk TV', cta: '抢先看', helper: '抢先看更多剧集内容' } }, english: { title: '', subtitle: '', background: '', config: { name: 'HelloTalk TV', cta: 'Watch first', helper: 'Watch more series content first' } } },
+  poll: { label: '阵营选择', fr: 'FR-05', displayIndex: '04', content: { title: '阵营选择', subtitle: '', background: '', config: { question: '你更期待谁先揭开花笺密令？', pollOptions: [{ label: '沈砚舟', image: '/film-assets/rank-2.png' }, { label: '洛瑶', image: '/film-assets/rank-1.png' }], helper: '截止 2026/09/20 · 12.8 万人参与' } }, english: { title: 'Choose a side', subtitle: '', background: '', config: { question: 'Who do you want to uncover the secret letter first?', pollOptions: [{ label: 'Shen Yanzhou', image: '/film-assets/rank-2.png' }, { label: 'Luo Yao', image: '/film-assets/rank-1.png' }], helper: 'Ends Sep 20, 2026 · 128K joined' } } },
+  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜11.1万\n沈砚舟｜24.8万\n许清晏｜11.0万', tasks: '每日签到｜+20\n带 #沈砚舟# 发帖｜+50\n去演员圈讨论｜+30\n去剧圈讨论｜+30', aggregateTitle: '完整人气榜', moreLabel: '查看完整榜单' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜111K\nShen Yanzhou｜248K\nXu Qingyan｜110K', tasks: 'Daily check-in｜+20\nPost with #ShenYanzhou#｜+50\nDiscuss in the cast circle｜+30\nDiscuss in the series circle｜+30', aggregateTitle: 'Full popularity ranking', moreLabel: 'View full ranking' } } },
+  banner: { label: 'Banner 广告跳转区', fr: 'FR-10', displayIndex: '', content: { title: '', subtitle: '', background: '', config: {} }, english: { title: '', subtitle: '', background: '', config: {} } },
   topic: { label: '话题区发帖（已有）', fr: 'FR-11', displayIndex: '', content: { title: '热门话题', subtitle: '', background: '', config: { items: '#长安花笺#｜此刻正在讨论这场雨夜初见\n#沈砚舟#｜和剧友聊聊你的角色选择\n#花笺密令#｜和剧友聊聊你的角色选择' } }, english: { title: 'Trending topics', subtitle: '', background: '', config: { items: '#LettersOfChangan#｜Talk about their first meeting in the rain\n#ShenYanzhou#｜Share your character choice with fans\n#SecretLetter#｜Talk with fans about the series' } } },
   posts: { label: '最佳帖文（已有）', fr: 'FR-12', displayIndex: '', content: { title: '最佳帖文', subtitle: '', background: '', config: { items: '花灯下的心动瞬间\n花灯亮起的那一刻，突然理解了他们的选择。' } }, english: { title: 'Best posts', subtitle: '', background: '', config: { items: 'A heartbeat under lanterns\nWhen the lanterns lit up, I finally understood their choice.' } } },
   voice: { label: '语聊区（已有）', fr: 'FR-13', displayIndex: '', content: { title: '正在语聊', subtitle: '', background: '', config: { items: '长安夜话：猜猜谁是密令主人\n花笺剧情推理局' } }, english: { title: 'Voice rooms', subtitle: '', background: '', config: { items: 'Night talk in Chang’an: who owns the letter?\nThe secret-letter plot club' } } },
@@ -189,16 +207,14 @@ const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
 
 moduleDefinitions.cast.content.config.moreLabel = '更多'
 moduleDefinitions.cast.english.config.moreLabel = 'More'
-moduleDefinitions.cast.content.config.moreLink = 'https://www.hellotalk.com/film/changan/cast'
-moduleDefinitions.cast.english.config.moreLink = 'https://www.hellotalk.com/film/changan/cast'
+moduleDefinitions.cast.content.config.aggregateTitle = '全部演员'
+moduleDefinitions.cast.english.config.aggregateTitle = 'All cast'
 moduleDefinitions.clips.content.config.moreLabel = '更多'
 moduleDefinitions.clips.english.config.moreLabel = 'More'
-moduleDefinitions.clips.content.config.moreLink = 'https://www.hellotalk.com/film/changan/clips'
-moduleDefinitions.clips.english.config.moreLink = 'https://www.hellotalk.com/film/changan/clips'
+moduleDefinitions.clips.content.config.aggregateTitle = '全部精彩切片'
+moduleDefinitions.clips.english.config.aggregateTitle = 'All scene clips'
 moduleDefinitions.ranking.content.config.cta = '捧场'
 moduleDefinitions.ranking.english.config.cta = 'Support'
-moduleDefinitions.ranking.content.config.ctaLink = 'https://www.hellotalk.com/film/changan/ranking'
-moduleDefinitions.ranking.english.config.ctaLink = 'https://www.hellotalk.com/film/changan/ranking'
 moduleDefinitions.topic.content.config.cta = '去发布'
 moduleDefinitions.topic.content.config.secondaryCta = '查看'
 moduleDefinitions.topic.english.config.cta = 'Post'
@@ -207,8 +223,6 @@ moduleDefinitions.topic.content.config.ctaLink = 'https://www.hellotalk.com/topi
 moduleDefinitions.topic.english.config.ctaLink = 'https://www.hellotalk.com/topic/changan/post'
 moduleDefinitions.topic.content.config.secondaryCtaLink = 'https://www.hellotalk.com/topic/changan'
 moduleDefinitions.topic.english.config.secondaryCtaLink = 'https://www.hellotalk.com/topic/changan'
-moduleDefinitions.hero.content.config.ctaLink = 'https://www.hellotalk.com/film/changan/play'
-moduleDefinitions.hero.english.config.ctaLink = 'https://www.hellotalk.com/film/changan/play'
 moduleDefinitions.banner.content.config.ctaLink = 'https://www.hellotalk.com/tv'
 moduleDefinitions.banner.english.config.ctaLink = 'https://www.hellotalk.com/tv'
 moduleDefinitions.voice.content.config.status = '语聊'
@@ -228,9 +242,10 @@ const initialModules: PageModule[] = (Object.keys(moduleDefinitions) as ModuleKi
   displayIndex: moduleDefinitions[kind].displayIndex,
   titleColor: '#1f2329',
   enabled: true,
+  condition: { enabled: false, regions: '', audience: '' },
   content: {
-    English: { ...moduleDefinitions[kind].english, background: referenceImage, images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].english.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
-    Chinese: { ...moduleDefinitions[kind].content, background: referenceImage, images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].content.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
+    English: { ...moduleDefinitions[kind].english, background: '', images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].english.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
+    Chinese: { ...moduleDefinitions[kind].content, background: '', images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].content.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
   } as Record<Language, LocalizedContent>,
 }))
 
@@ -240,7 +255,7 @@ type PreviewState = {
   rankingOpen: boolean
   rankingName: string
   rankingHeat: string
-  screen: '' | 'cast' | 'clips'
+  screen: '' | 'cast' | 'clips' | 'ranking' | 'checkin'
 }
 
 type PreviewFocus = {
@@ -353,6 +368,10 @@ function App() {
     )
   }
 
+  const replaceContent = (content: PageModule['content']) => {
+    setModules((items) => items.map((item) => (item.id === selectedId ? { ...item, content } : item)))
+  }
+
   const updateConfig = (language: Language, key: keyof ModuleConfig, value: string) => {
     setModules((items) =>
       items.map((item) => (item.id === selectedId
@@ -421,9 +440,10 @@ function App() {
       displayIndex: definition.displayIndex,
       titleColor: '#1f2329',
       enabled: true,
+      condition: { enabled: false, regions: '', audience: '' },
       content: Object.fromEntries(contentLanguages.map((language) => [language, {
         ...(language === 'English' ? definition.english : definition.content),
-        background: referenceImage,
+        background: '',
         images: { ...defaultModuleImages[kind] },
         config: { ...(language === 'English' ? definition.english.config : definition.content.config) },
         style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
@@ -449,7 +469,7 @@ function App() {
         content[language] = {
           ...source,
           background: '',
-          images: {},
+          images: item.kind === 'cast' ? { ...(content.Chinese?.images ?? source.images) } : {},
           style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
           config: {
             ...source.config,
@@ -462,6 +482,33 @@ function App() {
     if (!normalized.includes(previewLanguage)) setPreviewLanguage(normalized[0])
     setShowLanguageDialog(false)
     flash(autoTranslate ? '已添加内容语言并生成翻译初稿' : '已添加内容语言')
+  }
+
+  const generateAiLanguages = () => {
+    const aiLanguages: Language[] = ['Chinese', 'English', 'Chinese_yy', 'Vietnamese', 'Japanese']
+    setContentLanguages(aiLanguages)
+    setModules((items) => items.map((item) => {
+      const content = { ...item.content }
+      aiLanguages.forEach((language) => {
+        if (content[language]) return
+        const source = content.English ?? content.Chinese
+        content[language] = {
+          ...source,
+          background: '',
+          images: item.kind === 'cast' ? { ...(content.Chinese?.images ?? source.images) } : {},
+          style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
+          config: {
+            ...source.config,
+            infoTags: source.config.infoTags?.map((tag, index) => ({ ...tag, id: `${language}-ai-tag-${index + 1}` })),
+            pollOptions: source.config.pollOptions?.map((option) => ({ ...option })),
+            checkinPosters: source.config.checkinPosters?.map((poster) => ({ ...poster })),
+          },
+        }
+      })
+      return { ...item, content }
+    }))
+    setPreviewLanguage('Chinese')
+    flash('AI 已生成 English、Chinese_yy、Vietnamese、Japanese 初稿')
   }
 
   if (view === 'list') {
@@ -566,6 +613,7 @@ function App() {
                 languages={contentLanguages}
                 updateModule={updateModule}
                 updateContent={updateContent}
+                replaceContent={replaceContent}
                 updateConfig={updateConfig}
                 onFocusPreviewField={focusPreviewField}
                 flash={flash}
@@ -573,6 +621,7 @@ function App() {
                   setPendingLanguages(contentLanguages)
                   setShowLanguageDialog(true)
                 }}
+                onGenerateAi={generateAiLanguages}
               />
             </section>
 
@@ -713,15 +762,17 @@ function AdvancedSettings({ flash }: { flash: (value: string) => void }) {
   )
 }
 
-function ModuleForm({ selected, languages, updateModule, updateContent, updateConfig, onFocusPreviewField, flash, onAddLanguage }: {
+function ModuleForm({ selected, languages, updateModule, updateContent, replaceContent, updateConfig, onFocusPreviewField, flash, onAddLanguage, onGenerateAi }: {
   selected: PageModule
   languages: Language[]
   updateModule: (patch: Partial<Omit<PageModule, 'content'>>) => void
   updateContent: (language: Language, patch: Partial<LocalizedContent>) => void
+  replaceContent: (content: PageModule['content']) => void
   updateConfig: (language: Language, key: keyof ModuleConfig, value: string) => void
   onFocusPreviewField: (language: Language, field: PreviewFocus['field']) => void
   flash: (value: string) => void
   onAddLanguage: () => void
+  onGenerateAi: () => void
 }) {
   const hasDisplayImage = selected.kind !== 'clips' && imageSlots[selected.kind].length > 0
   const infoTagCounter = useRef(0)
@@ -760,15 +811,45 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
       <input type="number" min="8" max="48" step="1" value={selected.content[language].style?.fontSizes[field] ?? ''} placeholder="字号" onFocus={() => onFocusPreviewField(language, field)} onChange={(event) => updateFontSize(language, field, event.target.value)} />
     </label>
   )
+  const copyModuleContent = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(selected.content))
+      flash('已复制模块内容（含图片与文字）')
+    } catch {
+      flash('浏览器未授权访问剪贴板')
+    }
+  }
+  const pasteModuleContent = async () => {
+    try {
+      const pasted = JSON.parse(await navigator.clipboard.readText()) as PageModule['content']
+      if (!pasted || typeof pasted !== 'object') throw new Error('invalid clipboard')
+      replaceContent({ ...selected.content, ...pasted })
+      flash('已粘贴模块内容（含图片与文字）')
+    } catch {
+      flash('剪贴板中没有可用的模块配置')
+    }
+  }
   const updateImage = (language: Language, key: string, value: string) => {
+    if (selected.kind === 'cast') {
+      replaceContent(Object.fromEntries(Object.entries(selected.content).map(([contentLanguage, content]) => [contentLanguage, { ...content, images: { ...content.images, [key]: value } }])) as PageModule['content'])
+      return
+    }
     updateContent(language, { images: { ...selected.content[language].images, [key]: value } })
   }
-  const imageRow = (language: Language, slot: { key: string; label: string }) => (
+  const imageRow = (language: Language, slot: { key: string; label: string }, shared = false) => (
     <div className="localized-row image-row" key={`${language}-${slot.key}`}>
-      <select value={language} disabled><option>{languageLabels[language]} · {slot.label}</option></select>
+      <select value={language} disabled><option>{shared ? `所有语言 · ${slot.label}` : `${languageLabels[language]} · ${slot.label}`}</option></select>
       <input value={selected.content[language].images?.[slot.key] ?? ''} onFocus={() => onFocusPreviewField(language, `image:${slot.key}`)} onChange={(event) => updateImage(language, slot.key, event.target.value)} placeholder={`${slot.label} 图片链接`} />
       <button className="primary"><Upload size={14} /> 上传</button>
       <button className="row-remove" onClick={() => updateImage(language, slot.key, '')} title={`移除${slot.label}`}><X size={15} /></button>
+    </div>
+  )
+  const backgroundImageRow = (language: Language) => (
+    <div className="localized-row image-row" key={`${language}-background-image`}>
+      <select value={language} disabled><option>{languageLabels[language]}</option></select>
+      <input value={selected.content[language].background ?? ''} onFocus={() => onFocusPreviewField(language, 'background')} onChange={(event) => updateContent(language, { background: event.target.value })} placeholder="模块背景图片链接（可选）" />
+      <button className="primary"><Upload size={14} /> 上传</button>
+      <button className="row-remove" onClick={() => updateContent(language, { background: '' })} title="移除模块背景图片"><X size={15} /></button>
     </div>
   )
 
@@ -812,7 +893,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
     </section>
   )
 
-  const updatePollOptions = (language: Language, options: string[]) => {
+  const updatePollOptions = (language: Language, options: PollOption[]) => {
     updateContent(language, { config: { ...selected.content[language].config, pollOptions: options } })
   }
   const pollOptionRows = () => (
@@ -825,13 +906,14 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
           {options.map((option, index) => (
             <div className="localized-row" key={`${language}-poll-option-${index}`}>
               <span className="option-order">选项 {index + 1}</span>
-              <input value={option} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="输入选项文案" />
+              <input value={option.label} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} placeholder="输入选项文案" />
+              <input value={option.image} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="选项图片链接（可选）" />
               {colorControl(language, 'pollOptions', '#934741')}
               {fontSizeControl(language, 'pollOptions')}
               <button className="row-remove" onClick={() => updatePollOptions(language, options.filter((_, itemIndex) => itemIndex !== index))} title="删除选项"><X size={15} /></button>
             </div>
           ))}
-          <button type="button" className="secondary add-option" onClick={() => updatePollOptions(language, [...options, `选项 ${options.length + 1}`])}><Plus size={15} /> 添加选项</button>
+          <button type="button" className="secondary add-option" onClick={() => updatePollOptions(language, [...options, { label: `选项 ${options.length + 1}`, image: '' }])}><Plus size={15} /> 添加选项</button>
         </div>
       })}
     </section>
@@ -929,15 +1011,43 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
     </section>
   )
 
+  const checkinPosterRows = () => (
+    <section className="localized-field">
+      <div className="localized-field-label">签到海报日历</div>
+      {languages.map((language) => {
+        const posters = selected.content[language].config.checkinPosters ?? []
+        const updatePosters = (nextPosters: CheckinPoster[]) => updateContent(language, { config: { ...selected.content[language].config, checkinPosters: nextPosters } })
+        return <div className="clip-resource-editor" key={`${language}-checkin-posters`}>
+          <div className="structured-head"><b>{languageLabels[language]}</b><span>日期签到后显示对应海报</span></div>
+          {posters.map((poster, index) => <div className="clip-resource-item checkin-poster-item" key={`${language}-checkin-${index}`}>
+            <span>{index + 1}</span>
+            <label>日期<input value={poster.date} onFocus={() => onFocusPreviewField(language, 'checkinPosters')} onChange={(event) => updatePosters(posters.map((item, itemIndex) => itemIndex === index ? { ...item, date: event.target.value } : item))} placeholder="例如 09" /></label>
+            <label>签到海报<div className="clip-image-input"><input value={poster.image} onFocus={() => onFocusPreviewField(language, 'checkinPosters')} onChange={(event) => updatePosters(posters.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="图片链接" /><button className="secondary" title="上传签到海报"><Upload size={14} /></button></div></label>
+            <span />
+            <button className="row-remove" onClick={() => updatePosters(posters.filter((_, itemIndex) => itemIndex !== index))} title="删除签到海报"><X size={15} /></button>
+          </div>)}
+          <button className="secondary add-option" onClick={() => updatePosters([...posters, { date: '', image: '' }])}><Plus size={15} /> 添加海报日期</button>
+        </div>
+      })}
+    </section>
+  )
+
+  const aggregateImageRows = (kind: 'cast' | 'clips' | 'ranking') => (
+    <section className="localized-field">
+      <div className="localized-field-label">聚合页背景图</div>
+      {languages.map((language) => imageRow(language, { key: `${kind}-aggregate`, label: '聚合页背景' }))}
+    </section>
+  )
+
   const special = (
     <>
-      {selected.kind === 'hero' && <>{textRows('剧集名称', 'name', false, true)}{textRows('顶部提示', 'metadata')}{textRows('备注文案', 'schedule')}{textRows('按钮文案', 'cta')}{linkRows('按钮跳转链接', 'ctaLink')}</>}
+      {selected.kind === 'hero' && <>{textRows('签到按钮文案', 'cta')}{textRows('签到页标题', 'checkinTitle')}{textRows('签到页说明', 'checkinHint')}{checkinPosterRows()}</>}
       {selected.kind === 'info' && <>{textRows('剧集名称', 'name', false, true)}{infoTagRows()}{textRows('剧情简介', 'intro', true)}</>}
-      {selected.kind === 'cast' && <>{structuredRows('演员列表', 'items', ['演员名', '角色名'])}{textRows('更多入口文案', 'moreLabel')}{linkRows('更多跳转链接', 'moreLink')}</>}
-      {selected.kind === 'clips' && <>{clipResourceRows()}{textRows('更多入口文案', 'moreLabel')}{linkRows('更多跳转链接', 'moreLink')}</>}
+      {selected.kind === 'cast' && <>{structuredRows('演员列表', 'items', ['演员名', '角色名'])}{textRows('更多入口文案', 'moreLabel')}{textRows('演员聚合页标题', 'aggregateTitle')}{aggregateImageRows('cast')}</>}
+      {selected.kind === 'clips' && <>{clipResourceRows()}{textRows('更多入口文案', 'moreLabel')}{textRows('切片聚合页标题', 'aggregateTitle')}{aggregateImageRows('clips')}</>}
       {selected.kind === 'poll' && <>{textRows('投票题目', 'question', false, true)}{pollOptionRows()}{textRows('投票说明', 'helper')}</>}
-      {selected.kind === 'ranking' && <>{structuredRows('排行榜角色', 'items', ['角色名', '热力值'])}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{linkRows('助力跳转链接', 'ctaLink')}</>}
-      {selected.kind === 'banner' && <>{textRows('Banner 标识', 'name')}{textRows('跳转说明', 'helper')}{textRows('跳转文案', 'cta')}{linkRows('跳转链接', 'ctaLink')}</>}
+      {selected.kind === 'ranking' && <>{structuredRows('排行榜角色', 'items', ['角色名', '热力值'])}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
+      {selected.kind === 'banner' && linkRows('跳转链接', 'ctaLink')}
       {selected.kind === 'topic' && <>{structuredRows('话题列表', 'items', ['话题', '话题说明'])}{textRows('主操作文案', 'cta')}{linkRows('主操作跳转链接', 'ctaLink')}{textRows('次操作文案', 'secondaryCta')}{linkRows('次操作跳转链接', 'secondaryCtaLink')}</>}
       {selected.kind === 'posts' && textRows('展示帖文', 'items', true)}
       {selected.kind === 'voice' && <>{textRows('状态标签', 'status')}{textRows('语聊房列表', 'items', true)}{textRows('在线人数列表', 'helper', true)}</>}
@@ -948,16 +1058,19 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
   return (
     <div className="module-form multilingual-form">
       <section className="upload-block multilingual-head">
-        <div className="block-label">多语言内容 <button className="ai-upload" onClick={() => flash('已打开多语言文档上传') }><Sparkles size={14} /> 一键上传多语言文档 <ChevronDown size={14} /></button></div>
+        <div className="block-label">多语言内容 <span className="multilingual-actions"><button className="ai-upload" onClick={onGenerateAi}><Sparkles size={14} /> AI 生成多语言</button><button className="ai-upload" onClick={() => flash('已打开多语言文档上传') }><Upload size={14} /> 上传多语言文档</button></span></div>
         <p>所有面向用户展示的图片与文字，均按语言分别配置。</p>
+        <div className="clipboard-actions"><button className="secondary" onClick={copyModuleContent}><Copy size={14} /> 复制本模块</button><button className="secondary" onClick={pasteModuleContent}><Clipboard size={14} /> 从剪贴板粘贴</button></div>
       </section>
       {hasDisplayImage && <section className="localized-field">
         <div className="localized-field-label"><span className="required-mark">*</span>图片</div>
-        {languages.flatMap((language) => imageSlots[selected.kind].map((slot) => imageRow(language, slot)))}
+        {selected.kind === 'cast'
+          ? imageSlots.cast.map((slot) => imageRow('Chinese', slot, true))
+          : languages.flatMap((language) => imageSlots[selected.kind].map((slot) => imageRow(language, slot)))}
         <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button><button className="secondary"><Image size={15} /> 批量上传图片</button></div>
       </section>}
       <section className="localized-field">
-        <div className="localized-field-label">模块背景色</div>
+        <div className="localized-field-label">模块背景</div>
         {languages.map((language) => (
           <div className="localized-row style-row" key={`${language}-background-color`}>
             <select value={language} disabled><option>{languageLabels[language]}</option></select>
@@ -965,14 +1078,8 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
             <label className="field-color" title="模块背景色"><input type="color" value={selected.content[language].style?.backgroundColor ?? defaultContentStyle.backgroundColor} onFocus={() => onFocusPreviewField(language, 'background')} onChange={(event) => updateBackgroundColor(language, event.target.value)} /></label>
           </div>
         ))}
-      </section>
-      <section className="localized-field">
-        <div className="localized-field-label">前端分区编号</div>
-        <div className="localized-row style-row">
-          <span className="option-order">编号</span>
-          <input value={selected.displayIndex} onFocus={() => onFocusPreviewField(languages[0], 'displayIndex')} onChange={(event) => updateModule({ displayIndex: event.target.value })} placeholder="例如 01；留空则不展示" />
-          <span />
-        </div>
+        <div className="localized-field-note">可同时设置背景色与背景图片，图片覆盖在颜色之上。</div>
+        {languages.map(backgroundImageRow)}
       </section>
       {selected.kind !== 'hero' && <section className="localized-field">
         <div className="localized-field-label">标题</div>
@@ -997,6 +1104,11 @@ function ModuleForm({ selected, languages, updateModule, updateContent, updateCo
       </div>
       <div className="form-divider" />
       {special}
+      <section className="module-condition-editor">
+        <div><b>模块高级条件</b><span>按条件决定当前模块是否在用户端展示。</span></div>
+        <label className="toggle-field">启用条件<span className={`switch ${selected.condition.enabled ? '' : 'off'}`} onClick={() => updateModule({ condition: { ...selected.condition, enabled: !selected.condition.enabled } })}><i /></span></label>
+        {selected.condition.enabled && <div className="condition-fields"><label>目标地区<input value={selected.condition.regions} onChange={(event) => updateModule({ condition: { ...selected.condition, regions: event.target.value } })} placeholder="例如 US, JP" /></label><label>用户分群<input value={selected.condition.audience} onChange={(event) => updateModule({ condition: { ...selected.condition, audience: event.target.value } })} placeholder="例如 新用户" /></label></div>}
+      </section>
     </div>
   )
 }
@@ -1020,7 +1132,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
   const selectedModule = modules.find((item) => item.id === selectedId)
   // Preview only reads the selected language. Missing localized data must stay empty.
   const getContent = (module: PageModule | undefined) => module?.content[language]
-  const getImage = (module: PageModule | undefined, key: string) => getContent(module)?.images?.[key] ?? getContent(module)?.background ?? ''
+  const getImage = (module: PageModule | undefined, key: string) => getContent(module)?.images?.[key] ?? ''
   const isFocused = (module: PageModule, field: PreviewFocus['field']) => focus?.moduleId === module.id && focus.language === language && focus.field === field
   const isImageFocused = (module: PageModule) => focus?.moduleId === module.id && focus.language === language && focus.field.startsWith('image:')
   const previewTextStyle = (module: PageModule, field: StyleField, fallback: string) => {
@@ -1036,6 +1148,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
       '--module-title': content?.style?.textColors.title ?? module.titleColor,
       '--module-subtitle': content?.style?.textColors.subtitle ?? '#9a8174',
       '--module-art': primaryAsset && getImage(module, primaryAsset) ? `url("${getImage(module, primaryAsset)}")` : 'none',
+      '--module-background-image': content?.background ? `url("${content.background}")` : 'none',
     } as React.CSSProperties
   }
   const splitLines = (value: string | undefined) => value?.split('\n').filter(Boolean) ?? []
@@ -1071,8 +1184,10 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
         <b>{selectedModule ? `${selectedModule.fr} · ${selectedModule.label}` : '未选择模块'}</b>
       </div>
       <div className="h5-scroll" ref={scrollRef}>
-        {state.screen === 'cast' ? <OverlayScreen title={getContent(cast)?.title ?? ''} onClose={() => setState({ ...state, screen: '' })} list={castList} images={imageSlots.cast.map((slot) => getImage(cast, slot.key))} /> : null}
-        {state.screen === 'clips' ? <OverlayScreen title={getContent(clips)?.title ?? ''} onClose={() => setState({ ...state, screen: '' })} list={clipList} images={clipList.map((_, index) => getImage(clips, `clip-${index + 1}`))} links={clipLinks} /> : null}
+        {state.screen === 'cast' ? <OverlayScreen title={getContent(cast)?.config.aggregateTitle || getContent(cast)?.title || ''} onClose={() => setState({ ...state, screen: '' })} list={castList} images={imageSlots.cast.map((slot) => getImage(cast, slot.key))} background={getImage(cast, 'cast-aggregate')} /> : null}
+        {state.screen === 'clips' ? <OverlayScreen title={getContent(clips)?.config.aggregateTitle || getContent(clips)?.title || ''} onClose={() => setState({ ...state, screen: '' })} list={clipList} images={clipList.map((_, index) => getImage(clips, `clip-${index + 1}`))} links={clipLinks} background={getImage(clips, 'clips-aggregate')} /> : null}
+        {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} entries={splitLines(getContent(ranking)?.config.items).map((item) => item.split('｜'))} images={imageSlots.ranking.map((slot) => getImage(ranking, slot.key))} background={getImage(ranking, 'ranking-aggregate')} onSelect={(name, heat) => setState({ ...state, screen: '', rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
+        {state.screen === 'checkin' ? <CheckinScreen onClose={() => setState({ ...state, screen: '' })} content={getContent(modules.find((item) => item.kind === 'hero'))!} language={language} /> : null}
         {modules.map((module) => (
           <div
             key={module.id}
@@ -1083,7 +1198,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
           >
             {module.id === selectedId && <span className="preview-module-marker">当前配置</span>}
             {review && <button className="fr-badge" onClick={(event) => { event.stopPropagation(); onSelectModule(module.id) }}>{module.fr}</button>}
-            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><b className={isFocused(module, 'displayIndex') ? 'preview-field-highlight' : ''}>{module.displayIndex}</b><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{['cast', 'clips'].includes(module.kind) && <button className={`${isFocused(module, 'moreLabel') || isFocused(module, 'moreLink') ? 'preview-field-highlight' : ''}`} style={previewTextStyle(module, 'moreLabel', '#8b807a')} onClick={(e) => { e.stopPropagation(); const link = getContent(module)?.config.moreLink?.trim(); if (link) window.open(link, '_blank', 'noopener,noreferrer'); else setState({ ...state, screen: module.kind === 'cast' ? 'cast' : 'clips' }) }}>{getContent(module)?.config.moreLabel}</button>}</div>}
+            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{['cast', 'clips', 'ranking'].includes(module.kind) && <button className={isFocused(module, 'moreLabel') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'moreLabel', '#8b807a')} onClick={(e) => { e.stopPropagation(); setState({ ...state, screen: module.kind === 'cast' ? 'cast' : module.kind === 'clips' ? 'clips' : 'ranking' }) }}>{getContent(module)?.config.moreLabel}</button>}</div>}
             <PhoneModule module={module} content={getContent(module)!} language={language} state={state} setState={setState} flash={flash} focusField={focus?.moduleId === module.id && focus.language === language ? focus.field : null} />
           </div>
         ))}
@@ -1118,7 +1233,7 @@ function PhoneModule({ module, content, language, state, setState, flash, focusF
   }
   switch (module.kind) {
     case 'hero':
-      return <div className="h5-hero"><div className="hero-brand">HelloTalk.</div><div className="hero-copy"><span className={fieldClass('metadata')} style={fieldStyle('metadata', '#fff')}>{content.config.metadata}</span><h1 className={fieldClass('name')} style={fieldStyle('name', '#fff5d8')}>{content.config.name}</h1><small className={fieldClass('schedule')} style={fieldStyle('schedule', '#fff')}>{content.config.schedule}</small><button className={`${fieldClass('cta')} ${fieldClass('ctaLink')}`} style={fieldStyle('cta', '#bd2f2d')} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置按钮跳转链接' : 'Add a button link first') }}>{content.config.cta} <ChevronRight size={14} /></button></div></div>
+      return <div className="h5-hero"><div className="hero-brand">HelloTalk.</div><div className="hero-copy"><button className={fieldClass('cta')} style={fieldStyle('cta', '#bd2f2d')} onClick={(e) => { e.stopPropagation(); setState({ ...state, screen: 'checkin' }) }}>{content.config.cta} <ChevronRight size={14} /></button></div></div>
     case 'info':
       return <div className="info-card"><div className={fieldClass('image:poster', 'poster-tile')} style={assetStyle('poster')} /><div className="info-copy"><h2 className={fieldClass('name')} style={fieldStyle('name', '#2b2624')}>{content.config.name}</h2><div className="info-tags">{[...new Set(infoTags.map((tag) => tag.row))].map((row) => <div className="info-tag-row" key={row}>{infoTags.filter((tag) => tag.row === row).map((tag) => <span className={fieldClass(`tag:${tag.id}`, 'info-tag')} style={{ color: tag.color, fontSize: `${tag.fontSize}px` }} key={tag.id}>{tag.text}</span>)}</div>)}</div></div><p className={fieldClass('intro', 'info-intro')} style={fieldStyle('intro', '#564741')}>{content.config.intro}</p></div>
     case 'cast':
@@ -1128,14 +1243,14 @@ function PhoneModule({ module, content, language, state, setState, flash, focusF
     case 'poll': {
       const options = content.config.pollOptions ?? []
       const percent = options.length ? `${Math.round(100 / options.length)}%` : ''
-      const selectedOption = options[Number(state.vote)] ?? ''
+      const selectedOption = options[Number(state.vote)]?.label ?? ''
       const voteResult = isChinese ? `已投票支持 ${selectedOption}` : `You supported ${selectedOption}`
-      return <div className="poll-box"><p className={fieldClass('question')} style={fieldStyle('question', '#2b2624')}>{content.config.question}</p><div className={`poll-options ${options.length > 2 ? 'stacked' : ''}`}>{options.map((label, index) => <button style={!state.voted ? fieldStyle('pollOptions', '#934741') : undefined} className={`${state.voted && state.vote === String(index) ? 'voted' : ''} ${fieldClass('pollOptions')}`} key={`${label}-${index}`} onClick={(e) => { e.stopPropagation(); setState({ ...state, voted: true, vote: String(index) }) }}><span>{label}</span>{state.voted && <b>{percent}</b>}</button>)}</div><small className={state.voted ? 'poll-result' : fieldClass('helper')} style={state.voted ? undefined : fieldStyle('helper', '#a58a80')}>{state.voted ? voteResult : content.config.helper}</small></div>
+      return <div className="poll-box"><p className={fieldClass('question')} style={fieldStyle('question', '#2b2624')}>{content.config.question}</p><div className={`poll-options ${options.length > 2 ? 'stacked' : ''}`}>{options.map((option, index) => <button style={!state.voted ? fieldStyle('pollOptions', '#934741') : undefined} className={`${option.image ? 'with-image' : ''} ${state.voted && state.vote === String(index) ? 'voted' : ''} ${fieldClass('pollOptions')}`} key={`${option.label}-${index}`} onClick={(e) => { e.stopPropagation(); setState({ ...state, voted: true, vote: String(index) }) }}>{option.image && <i style={{ '--option-image': `url("${option.image}")` } as React.CSSProperties} />}<span>{option.label}</span>{state.voted && <b>{percent}</b>}</button>)}</div><small className={state.voted ? 'poll-result' : fieldClass('helper')} style={state.voted ? undefined : fieldStyle('helper', '#a58a80')}>{state.voted ? voteResult : content.config.helper}</small></div>
     }
     case 'ranking':
-      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, heat], i) => <button key={`${name}-${i}`} className={`${fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} ${fieldClass('ctaLink')}`} onClick={(e) => { e.stopPropagation(); if (content.config.ctaLink?.trim()) openConfiguredLink(content.config.ctaLink, ''); else setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{heat}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
+      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, heat], i) => <button key={`${name}-${i}`} className={fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} onClick={(e) => { e.stopPropagation(); setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{heat}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
     case 'banner':
-      return <button className={`${fieldClass('ctaLink', 'blue-banner')}`} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }}><b className={fieldClass('name')} style={fieldStyle('name', '#fff')}>{content.config.name}</b><span className={fieldClass('helper')} style={fieldStyle('helper', '#fff')}>{content.config.helper}</span><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta} <ExternalLink size={12} /></em></button>
+      return <button className={`${fieldClass('ctaLink', 'blue-banner')}`} style={assetStyle('banner')} aria-label={isChinese ? '打开 Banner 跳转链接' : 'Open banner link'} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }} />
     case 'topic':
       return <div className="topic-list">{topicEntries.map(([topic, description], i) => { const link = i === 0 ? content.config.ctaLink : content.config.secondaryCtaLink; return <button key={`${topic}-${i}`} className={fieldClass(i === 0 ? 'ctaLink' : 'secondaryCtaLink')} onClick={(e) => { e.stopPropagation(); openConfiguredLink(link, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }}><span className={fieldClass(`image:topic-${i + 1}`, 'topic-thumb')} style={assetStyle(`topic-${i + 1}`)} /><div><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#2b2624')}>{topic}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#87756b')}>{description}</small></div><em className={fieldClass(i === 0 ? 'cta' : 'secondaryCta')} style={fieldStyle(i === 0 ? 'cta' : 'secondaryCta', '#fff')}>{i === 0 ? content.config.cta : content.config.secondaryCta}</em></button> })}</div>
     case 'posts':
@@ -1147,6 +1262,18 @@ function PhoneModule({ module, content, language, state, setState, flash, focusF
   }
 }
 
+function CheckinScreen({ onClose, content, language }: { onClose: () => void; content: LocalizedContent; language: Language }) {
+  const [checked, setChecked] = useState(false)
+  const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
+  const posters = content.config.checkinPosters ?? []
+  return <div className="h5-overlay checkin-screen"><header><button onClick={onClose} aria-label={isChinese ? '关闭签到日历' : 'Close check-in calendar'}><ChevronLeft size={23} /></button><b>{content.config.checkinTitle}</b><span /></header><div className="checkin-calendar"><p>{content.config.checkinHint}</p><div className="calendar-month">2026 年 8 月</div><div className="calendar-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div className="calendar-grid">{Array.from({ length: 21 }, (_, index) => { const day = String(index + 1).padStart(2, '0'); const poster = posters.find((item) => item.date === day); return <div className={`calendar-day ${poster ? 'has-poster' : ''} ${checked && poster ? 'unlocked' : ''}`} key={day}>{poster ? <><span>{day}</span><i style={{ '--calendar-poster': `url("${poster.image}")` } as React.CSSProperties} /></> : <span>{day}</span>}</div> })}</div><button className={`checkin-confirm ${checked ? 'done' : ''}`} onClick={() => setChecked(true)}>{checked ? (isChinese ? '已签到' : 'Checked in') : (content.config.cta || (isChinese ? '签到' : 'Check in'))}</button></div></div>
+}
+
+function RankingBoard({ title, onClose, entries, images, background, onSelect, cta }: { title: string; onClose: () => void; entries: string[][]; images: string[]; background: string; onSelect: (name: string, heat?: string) => void; cta: string }) {
+  const podium = entries.slice(0, 3)
+  return <div className="h5-overlay ranking-board"><header><button onClick={onClose} aria-label="关闭完整榜单"><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="ranking-board-hero" style={{ '--ranking-board-background': background ? `url("${background}")` : 'none' } as React.CSSProperties}><strong>{title}</strong><span>实时更新</span></div><div className="ranking-tabs"><b>剧集</b><span>电影</span></div><div className="ranking-podium">{podium.map(([name, heat], index) => <button key={`${name}-${index}`} onClick={() => onSelect(name, heat)}><i style={{ '--podium-image': `url("${images[index] ?? ''}")` } as React.CSSProperties} /><em>{index + 1}</em><b>{name}</b><small>{heat}</small><span>{cta}</span></button>)}</div><div className="ranking-list">{entries.slice(3).map(([name, heat], index) => <button key={`${name}-${index + 3}`} onClick={() => onSelect(name, heat)}><i style={{ '--podium-image': `url("${images[(index + 3) % images.length] ?? ''}")` } as React.CSSProperties} /><b>{index + 4}</b><span>{name}</span><em>{heat}</em><strong>{cta}</strong></button>)}</div></div>
+}
+
 function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: { onClose: () => void; name: string; heat: string; tasks: string | undefined; language: Language; highlightTasks: boolean }) {
   const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
   const taskEntries = (tasks?.split('\n').filter(Boolean) ?? []).map((item) => item.split('｜'))
@@ -1156,8 +1283,8 @@ function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: 
   return <div className="phone-sheet"><div className="sheet-scrim" onClick={onClose} /><div className="sheet-content"><button className="sheet-close" onClick={onClose} aria-label={copy.close}><X size={18} /></button><div className="sheet-profile"><div className="small-rank-face" /><div><b>{copy.support} {name || copy.character}</b><span>{copy.current} {heat || '0'}</span></div></div><div className="contribution"><div><span>{copy.total}</span><b>180</b></div><div><span>{copy.rank}</span><b>NO. 125</b></div></div><h3>{copy.heading}</h3>{taskEntries.map(([task, reward, link], i) => <button className={`task-row ${highlightTasks ? 'preview-field-highlight' : ''}`} key={`${task}-${i}`} onClick={() => { if (link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer') }}><span className={`task-icon ti${(i % 4) + 1}`}>{i + 1}</span><b>{task}</b><em>{reward || '+0'}</em><ChevronRight size={16} /></button>)}</div></div>
 }
 
-function OverlayScreen({ title, list, onClose, images, links = [] }: { title: string; list: string[]; onClose: () => void; images: string[]; links?: string[] }) {
-  return <div className="h5-overlay"><header><button onClick={onClose}><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="overlay-list">{list.map((item, index) => {
+function OverlayScreen({ title, list, onClose, images, links = [], background = '' }: { title: string; list: string[]; onClose: () => void; images: string[]; links?: string[]; background?: string }) {
+  return <div className="h5-overlay" style={{ '--overlay-background': background ? `url("${background}")` : 'none' } as React.CSSProperties}><header><button onClick={onClose}><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="overlay-list">{list.map((item, index) => {
     const link = links[index]?.trim()
     const row = <><div className="overlay-art" style={{ '--asset-image': images[index] ? `url("${images[index]}")` : 'none' } as React.CSSProperties} /><span><b>{item}</b></span><ChevronRight size={17} /></>
     return link ? <button className="overlay-resource" key={`${item}-${index}`} onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}>{row}</button> : <div key={`${item}-${index}`}>{row}</div>
