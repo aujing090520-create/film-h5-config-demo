@@ -1,0 +1,1230 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  Clipboard,
+  Copy,
+  ExternalLink,
+  Film,
+  GripVertical,
+  Image,
+  Languages,
+  Menu,
+  Plus,
+  QrCode,
+  Search,
+  Settings2,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
+import './App.css'
+
+const referenceImage = '/film-reference.png'
+
+type ModuleKind =
+  | 'hero'
+  | 'info'
+  | 'cast'
+  | 'clips'
+  | 'poll'
+  | 'ranking'
+  | 'banner'
+  | 'topic'
+  | 'posts'
+  | 'voice'
+  | 'live'
+
+type Language =
+  | 'English'
+  | 'Chinese'
+  | 'Chinese_yy'
+  | 'Thai'
+  | 'Japanese'
+  | 'Korean'
+  | 'Spanish'
+  | 'Portuguese'
+  | 'French'
+  | 'Italian'
+  | 'Russian'
+  | 'German'
+  | 'Arabic'
+  | 'Catalan'
+  | 'Danish'
+  | 'Esperanto'
+  | 'Persian'
+  | 'Indonesian'
+  | 'Turkish'
+  | 'Vietnamese'
+  | 'Dutch'
+  | 'Swedish'
+  | 'Norwegian'
+  | 'Polish'
+  | 'Hindi'
+  | 'Cantonese'
+
+type InfoTag = {
+  id: string
+  text: string
+  row: number
+  position: number
+  color: string
+  fontSize: number
+}
+
+type ModuleConfig = {
+  name?: string
+  intro?: string
+  question?: string
+  cta?: string
+  status?: string
+  items?: string
+  tasks?: string
+  metadata?: string
+  infoTags?: InfoTag[]
+  schedule?: string
+  helper?: string
+  body?: string
+  pollOptions?: string[]
+  moreLabel?: string
+  moreLink?: string
+  secondaryCta?: string
+  secondaryCtaLink?: string
+  ctaLink?: string
+  links?: string
+}
+
+type DisplayField = keyof ModuleConfig | 'title' | 'subtitle'
+type TextConfigKey = Exclude<keyof ModuleConfig, 'infoTags' | 'pollOptions'>
+type StyleField = DisplayField | `structured:${string}:${number}`
+
+type ContentStyle = {
+  backgroundColor: string
+  textColors: Partial<Record<StyleField, string>>
+  fontSizes: Partial<Record<StyleField, number>>
+}
+
+type LocalizedContent = {
+  title: string
+  subtitle: string
+  background: string
+  config: ModuleConfig
+  style?: ContentStyle
+  images?: Record<string, string>
+}
+
+type PageModule = {
+  id: string
+  kind: ModuleKind
+  label: string
+  fr: string
+  displayIndex: string
+  titleColor: string
+  enabled: boolean
+  content: Record<Language, LocalizedContent>
+}
+
+type ModuleDefinition = Pick<PageModule, 'label' | 'fr' | 'displayIndex'> & {
+  content: LocalizedContent
+  english: LocalizedContent
+}
+
+const defaultContentStyle: ContentStyle = { backgroundColor: '#fffdf9', textColors: {}, fontSizes: {} }
+
+const createInfoTags = (prefix: string, tags: Array<[string, number, number, string, number]>): InfoTag[] => tags.map(([text, row, position, color, fontSize], index) => ({ id: `${prefix}-${index + 1}`, text, row, position, color, fontSize }))
+type LegacyInfoValues = { score?: string; rankingText?: string; viewCount?: string; schedule?: string; helper?: string }
+const defaultInfoTags = (language: Language, legacy: LegacyInfoValues = {}) => {
+  const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
+  return createInfoTags(`${language}-info`, isChinese
+    ? [[legacy.score ?? '9.2', 1, 1, '#de4f48', 16], [legacy.rankingText ?? 'NO.2 热播剧', 1, 2, '#8a736a', 10], [legacy.viewCount ?? '观看量 126.3万', 1, 3, '#8a736a', 10], [legacy.schedule ?? '古装 · 爱情 · 权谋', 2, 1, '#8a736a', 10], [legacy.helper ?? '2026/08/09 · 共 40 集 · 每周更新', 3, 1, '#8a736a', 10]]
+    : [[legacy.score ?? '9.2', 1, 1, '#de4f48', 16], [legacy.rankingText ?? 'No.2 trending drama', 1, 2, '#8a736a', 10], [legacy.viewCount ?? '1.263M views', 1, 3, '#8a736a', 10], [legacy.schedule ?? 'Historical · Romance · Intrigue', 2, 1, '#8a736a', 10], [legacy.helper ?? 'Aug 9, 2026 · 40 episodes · Weekly updates', 3, 1, '#8a736a', 10]])
+}
+
+const imageSlots: Record<ModuleKind, { key: string; label: string }[]> = {
+  hero: [{ key: 'hero', label: '头图主视觉' }],
+  info: [{ key: 'poster', label: '剧集海报' }],
+  cast: ['演员 1', '演员 2', '演员 3', '演员 4'].map((label, index) => ({ key: `cast-${index + 1}`, label })),
+  clips: ['切片 1', '切片 2', '切片 3'].map((label, index) => ({ key: `clip-${index + 1}`, label })),
+  poll: [],
+  ranking: ['榜单角色 1', '榜单角色 2', '榜单角色 3'].map((label, index) => ({ key: `rank-${index + 1}`, label })),
+  banner: [],
+  topic: ['话题 1', '话题 2', '话题 3'].map((label, index) => ({ key: `topic-${index + 1}`, label })),
+  posts: ['帖文 1', '帖文 2'].map((label, index) => ({ key: `post-${index + 1}`, label })),
+  voice: [],
+  live: ['直播 1', '直播 2'].map((label, index) => ({ key: `live-${index + 1}`, label })),
+}
+
+const defaultModuleImages: Record<ModuleKind, Record<string, string>> = {
+  hero: { hero: '/film-assets/hero-keyart.png' },
+  info: { poster: '/film-assets/series-poster.png' },
+  cast: Object.fromEntries([1, 2, 3, 4].map((index) => [`cast-${index}`, `/film-assets/cast-${index}.png`])),
+  clips: Object.fromEntries([1, 2, 3].map((index) => [`clip-${index}`, `/film-assets/clip-${index}.png`])),
+  poll: {},
+  ranking: Object.fromEntries([1, 2, 3].map((index) => [`rank-${index}`, `/film-assets/rank-${index}.png`])),
+  banner: {},
+  topic: Object.fromEntries([1, 2, 3].map((index) => [`topic-${index}`, `/film-assets/topic-${index}.png`])),
+  posts: Object.fromEntries([1, 2].map((index) => [`post-${index}`, `/film-assets/post-${index}.png`])),
+  voice: {},
+  live: Object.fromEntries([1, 2].map((index) => [`live-${index}`, `/film-assets/live-${index}.png`])),
+}
+
+const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
+  hero: { label: '头图', fr: 'FR-01', displayIndex: '', content: { title: '', subtitle: '', background: '', config: { name: '长安花笺', cta: '立即追剧', metadata: '8月9日看', schedule: '正在热播 · 2026' } }, english: { title: '', subtitle: '', background: '', config: { name: "Letters of Chang'an", cta: 'Watch now', metadata: 'Premiering Aug 9', schedule: 'Now streaming · 2026' } } },
+  info: { label: '影视信息区', fr: 'FR-02', displayIndex: '01', content: { title: '剧情简介', subtitle: '', background: '', config: { name: '长安花笺', intro: '出身书香门第的花笺为守护家族与心中正义，卷入朝堂纷争。', infoTags: defaultInfoTags('Chinese') } }, english: { title: 'About the series', subtitle: '', background: '', config: { name: 'Letters of Chang’an', intro: 'Hua Jian is drawn into court intrigue as she protects her family and the justice she believes in.', infoTags: defaultInfoTags('English') } } },
+  cast: { label: '演员区', fr: 'FR-03', displayIndex: '02', content: { title: '演员区', subtitle: '', background: '', config: { items: '洛瑶｜饰 宁安\n沈砚舟｜饰 李承槐\n许清晏｜饰 谢长宁\n温言｜饰 南宫月' } }, english: { title: 'Cast', subtitle: '', background: '', config: { items: 'Luo Yao｜as Ning An\nShen Yanzhou｜as Li Chenghuai\nXu Qingyan｜as Xie Changning\nWen Yan｜as Nangong Yue' } } },
+  clips: { label: '剧情切片工厂', fr: 'FR-04', displayIndex: '03', content: { title: '剧情切片工厂', subtitle: '', background: '', config: { items: '雨夜执伞\n花笺密令\n初见如故', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } }, english: { title: 'Scene clips', subtitle: '', background: '', config: { items: 'An umbrella in the rain\nThe secret letter\nLove at first sight', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } } },
+  poll: { label: '阵营选择', fr: 'FR-05', displayIndex: '04', content: { title: '阵营选择', subtitle: '', background: '', config: { question: '你更期待谁先揭开花笺密令？', pollOptions: ['沈砚舟', '洛瑶'], helper: '截止 2026/09/20 · 12.8 万人参与' } }, english: { title: 'Choose a side', subtitle: '', background: '', config: { question: 'Who do you want to uncover the secret letter first?', pollOptions: ['Shen Yanzhou', 'Luo Yao'], helper: 'Ends Sep 20, 2026 · 128K joined' } } },
+  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜11.1万\n沈砚舟｜24.8万\n许清晏｜11.0万', tasks: '每日签到｜+20\n带 #沈砚舟# 发帖｜+50\n去演员圈讨论｜+30\n去剧圈讨论｜+30' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜111K\nShen Yanzhou｜248K\nXu Qingyan｜110K', tasks: 'Daily check-in｜+20\nPost with #ShenYanzhou#｜+50\nDiscuss in the cast circle｜+30\nDiscuss in the series circle｜+30' } } },
+  banner: { label: 'Banner 广告跳转区', fr: 'FR-10', displayIndex: '', content: { title: '', subtitle: '', background: '', config: { name: 'HelloTalk TV', cta: '抢先看', helper: '抢先看更多剧集内容' } }, english: { title: '', subtitle: '', background: '', config: { name: 'HelloTalk TV', cta: 'Watch first', helper: 'Watch more series content first' } } },
+  topic: { label: '话题区发帖（已有）', fr: 'FR-11', displayIndex: '', content: { title: '热门话题', subtitle: '', background: '', config: { items: '#长安花笺#｜此刻正在讨论这场雨夜初见\n#沈砚舟#｜和剧友聊聊你的角色选择\n#花笺密令#｜和剧友聊聊你的角色选择' } }, english: { title: 'Trending topics', subtitle: '', background: '', config: { items: '#LettersOfChangan#｜Talk about their first meeting in the rain\n#ShenYanzhou#｜Share your character choice with fans\n#SecretLetter#｜Talk with fans about the series' } } },
+  posts: { label: '最佳帖文（已有）', fr: 'FR-12', displayIndex: '', content: { title: '最佳帖文', subtitle: '', background: '', config: { items: '花灯下的心动瞬间\n花灯亮起的那一刻，突然理解了他们的选择。' } }, english: { title: 'Best posts', subtitle: '', background: '', config: { items: 'A heartbeat under lanterns\nWhen the lanterns lit up, I finally understood their choice.' } } },
+  voice: { label: '语聊区（已有）', fr: 'FR-13', displayIndex: '', content: { title: '正在语聊', subtitle: '', background: '', config: { items: '长安夜话：猜猜谁是密令主人\n花笺剧情推理局' } }, english: { title: 'Voice rooms', subtitle: '', background: '', config: { items: 'Night talk in Chang’an: who owns the letter?\nThe secret-letter plot club' } } },
+  live: { label: '直播区（已有）', fr: 'FR-14', displayIndex: '', content: { title: '正在直播', subtitle: '', background: '', config: { items: '长安花笺 主创见面会\n演员在线聊幕后' } }, english: { title: 'Live now', subtitle: '', background: '', config: { items: 'Letters of Chang’an cast meet-up\nCast talks about the scenes' } } },
+}
+
+moduleDefinitions.cast.content.config.moreLabel = '更多'
+moduleDefinitions.cast.english.config.moreLabel = 'More'
+moduleDefinitions.cast.content.config.moreLink = 'https://www.hellotalk.com/film/changan/cast'
+moduleDefinitions.cast.english.config.moreLink = 'https://www.hellotalk.com/film/changan/cast'
+moduleDefinitions.clips.content.config.moreLabel = '更多'
+moduleDefinitions.clips.english.config.moreLabel = 'More'
+moduleDefinitions.clips.content.config.moreLink = 'https://www.hellotalk.com/film/changan/clips'
+moduleDefinitions.clips.english.config.moreLink = 'https://www.hellotalk.com/film/changan/clips'
+moduleDefinitions.ranking.content.config.cta = '捧场'
+moduleDefinitions.ranking.english.config.cta = 'Support'
+moduleDefinitions.ranking.content.config.ctaLink = 'https://www.hellotalk.com/film/changan/ranking'
+moduleDefinitions.ranking.english.config.ctaLink = 'https://www.hellotalk.com/film/changan/ranking'
+moduleDefinitions.topic.content.config.cta = '去发布'
+moduleDefinitions.topic.content.config.secondaryCta = '查看'
+moduleDefinitions.topic.english.config.cta = 'Post'
+moduleDefinitions.topic.english.config.secondaryCta = 'View'
+moduleDefinitions.topic.content.config.ctaLink = 'https://www.hellotalk.com/topic/changan/post'
+moduleDefinitions.topic.english.config.ctaLink = 'https://www.hellotalk.com/topic/changan/post'
+moduleDefinitions.topic.content.config.secondaryCtaLink = 'https://www.hellotalk.com/topic/changan'
+moduleDefinitions.topic.english.config.secondaryCtaLink = 'https://www.hellotalk.com/topic/changan'
+moduleDefinitions.hero.content.config.ctaLink = 'https://www.hellotalk.com/film/changan/play'
+moduleDefinitions.hero.english.config.ctaLink = 'https://www.hellotalk.com/film/changan/play'
+moduleDefinitions.banner.content.config.ctaLink = 'https://www.hellotalk.com/tv'
+moduleDefinitions.banner.english.config.ctaLink = 'https://www.hellotalk.com/tv'
+moduleDefinitions.voice.content.config.status = '语聊'
+moduleDefinitions.voice.english.config.status = 'Voice'
+moduleDefinitions.live.content.config.status = 'LIVE'
+moduleDefinitions.live.english.config.status = 'LIVE'
+moduleDefinitions.voice.content.config.helper = '38 人正在语聊\n26 人正在语聊'
+moduleDefinitions.voice.english.config.helper = '38 people talking\n26 people talking'
+moduleDefinitions.live.content.config.helper = '09/21 21:00\n08/20 16:00'
+moduleDefinitions.live.english.config.helper = '09/21 21:00\n08/20 16:00'
+
+const initialModules: PageModule[] = (Object.keys(moduleDefinitions) as ModuleKind[]).map((kind, index) => ({
+  id: `module-${index + 1}`,
+  kind,
+  label: moduleDefinitions[kind].label,
+  fr: moduleDefinitions[kind].fr,
+  displayIndex: moduleDefinitions[kind].displayIndex,
+  titleColor: '#1f2329',
+  enabled: true,
+  content: {
+    English: { ...moduleDefinitions[kind].english, background: referenceImage, images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].english.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
+    Chinese: { ...moduleDefinitions[kind].content, background: referenceImage, images: { ...defaultModuleImages[kind] }, config: { ...moduleDefinitions[kind].content.config }, style: { ...defaultContentStyle, textColors: {}, fontSizes: {} } },
+  } as Record<Language, LocalizedContent>,
+}))
+
+type PreviewState = {
+  voted: boolean
+  vote: string
+  rankingOpen: boolean
+  rankingName: string
+  rankingHeat: string
+  screen: '' | 'cast' | 'clips'
+}
+
+type PreviewFocus = {
+  moduleId: string
+  language: Language
+  field: StyleField | 'background' | 'displayIndex' | `image:${string}` | `tag:${string}`
+}
+
+const languageLabels: Record<Language, string> = {
+  English: 'English',
+  Chinese: 'Chinese',
+  Chinese_yy: 'Chinese_yy',
+  Thai: 'Thai',
+  Japanese: 'Japanese',
+  Korean: 'Korean',
+  Spanish: 'Spanish',
+  Portuguese: 'Portuguese',
+  French: 'French',
+  Italian: 'Italian',
+  Russian: 'Russian',
+  German: 'German',
+  Arabic: 'Arabic',
+  Catalan: 'Catalan',
+  Danish: 'Danish',
+  Esperanto: 'Esperanto',
+  Persian: 'Persian',
+  Indonesian: 'Indonesian',
+  Turkish: 'Turkish',
+  Vietnamese: 'Vietnamese',
+  Dutch: 'Dutch',
+  Swedish: 'Swedish',
+  Norwegian: 'Norwegian',
+  Polish: 'Polish',
+  Hindi: 'Hindi',
+  Cantonese: 'Cantonese',
+}
+
+const allLanguages = Object.keys(languageLabels) as Language[]
+
+function App() {
+  const [view, setView] = useState<'list' | 'editor'>('list')
+  const [tab, setTab] = useState<'basic' | 'modules' | 'advanced'>('modules')
+  const [modules, setModules] = useState(initialModules)
+  const [selectedId, setSelectedId] = useState(initialModules[3].id)
+  const [contentLanguages, setContentLanguages] = useState<Language[]>(['Chinese'])
+  const [previewLanguage, setPreviewLanguage] = useState<Language>('Chinese')
+  const [previewFocus, setPreviewFocus] = useState<PreviewFocus | null>(null)
+  const [showLibrary, setShowLibrary] = useState(false)
+  const [showLanguageDialog, setShowLanguageDialog] = useState(false)
+  const [pendingLanguages, setPendingLanguages] = useState<Language[]>(['Chinese'])
+  const [autoTranslate, setAutoTranslate] = useState(true)
+  const [toast, setToast] = useState('')
+  const [review, setReview] = useState(false)
+  const generatedModuleId = useRef(0)
+  const [previewState, setPreviewState] = useState<PreviewState>({
+    voted: false,
+    vote: 'a',
+    rankingOpen: false,
+    rankingName: '',
+    rankingHeat: '',
+    screen: '',
+  })
+
+  const selected = modules.find((item) => item.id === selectedId) ?? modules[0]
+  const enabledModules = useMemo(() => modules.filter((item) => item.enabled), [modules])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setModules((items) => {
+        let changed = false
+        const migrated = items.map((item) => {
+          if (item.kind !== 'info') return item
+          const content = { ...item.content }
+          ;(Object.keys(content) as Language[]).forEach((language) => {
+            const localized = content[language]
+            if (localized.config.infoTags?.length) return
+            changed = true
+            content[language] = {
+              ...localized,
+              config: { ...localized.config, infoTags: defaultInfoTags(language, localized.config as LegacyInfoValues) },
+            }
+          })
+          return changed ? { ...item, content } : item
+        })
+        return changed ? migrated : items
+      })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  const flash = (message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 1800)
+  }
+
+  const updateModule = (patch: Partial<Omit<PageModule, 'content'>>) => {
+    setModules((items) => items.map((item) => (item.id === selectedId ? { ...item, ...patch } : item)))
+  }
+
+  const nextModuleId = (kind: ModuleKind) => {
+    generatedModuleId.current += 1
+    return `${kind}-${generatedModuleId.current}`
+  }
+
+  const updateContent = (language: Language, patch: Partial<LocalizedContent>) => {
+    setModules((items) =>
+      items.map((item) => (item.id === selectedId
+        ? { ...item, content: { ...item.content, [language]: { ...item.content[language], ...patch } } }
+        : item)),
+    )
+  }
+
+  const updateConfig = (language: Language, key: keyof ModuleConfig, value: string) => {
+    setModules((items) =>
+      items.map((item) => (item.id === selectedId
+        ? {
+            ...item,
+            content: {
+              ...item.content,
+              [language]: {
+                ...item.content[language],
+                config: { ...item.content[language].config, [key]: value },
+              },
+            },
+          }
+        : item)),
+    )
+  }
+
+  const focusPreviewField = (language: Language, field: PreviewFocus['field']) => {
+    setPreviewLanguage(language)
+    setPreviewFocus({ moduleId: selectedId, language, field })
+  }
+
+  const moveModule = (direction: -1 | 1) => {
+    const index = modules.findIndex((item) => item.id === selectedId)
+    const nextIndex = index + direction
+    if (index < 0 || nextIndex < 0 || nextIndex >= modules.length) return
+    const next = [...modules]
+    ;[next[index], next[nextIndex]] = [next[nextIndex], next[index]]
+    setModules(next)
+  }
+
+  const duplicateModule = () => {
+    const index = modules.findIndex((item) => item.id === selectedId)
+    const copy = {
+      ...selected,
+      id: nextModuleId(selected.kind),
+      label: `${selected.label} 副本`,
+      content: Object.fromEntries(contentLanguages.map((language) => [language, {
+        ...selected.content[language],
+        config: { ...selected.content[language].config },
+      }])) as Record<Language, LocalizedContent>,
+    }
+    const next = [...modules]
+    next.splice(index + 1, 0, copy)
+    setModules(next)
+    setSelectedId(copy.id)
+    flash('模块已复制')
+  }
+
+  const deleteModule = () => {
+    if (modules.length === 1) return
+    const index = modules.findIndex((item) => item.id === selectedId)
+    const next = modules.filter((item) => item.id !== selectedId)
+    setModules(next)
+    setSelectedId(next[Math.max(0, index - 1)].id)
+    flash('模块已删除')
+  }
+
+  const addModule = (kind: ModuleKind) => {
+    const definition = moduleDefinitions[kind]
+    const item: PageModule = {
+      id: nextModuleId(kind),
+      kind,
+      label: definition.label,
+      fr: definition.fr,
+      displayIndex: definition.displayIndex,
+      titleColor: '#1f2329',
+      enabled: true,
+      content: Object.fromEntries(contentLanguages.map((language) => [language, {
+        ...(language === 'English' ? definition.english : definition.content),
+        background: referenceImage,
+        images: { ...defaultModuleImages[kind] },
+        config: { ...(language === 'English' ? definition.english.config : definition.content.config) },
+        style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
+      }])) as Record<Language, LocalizedContent>,
+    }
+    const index = modules.findIndex((module) => module.id === selectedId)
+    const next = [...modules]
+    next.splice(index + 1, 0, item)
+    setModules(next)
+    setSelectedId(item.id)
+    setShowLibrary(false)
+  }
+
+  const saveLanguages = () => {
+    const normalized: Language[] = pendingLanguages.includes('English') ? pendingLanguages : ['English', ...pendingLanguages]
+    const previous = contentLanguages
+    setContentLanguages(normalized)
+    setModules((items) => items.map((item) => {
+      const content = { ...item.content }
+      normalized.forEach((language) => {
+        if (content[language]) return
+        const source = content.English ?? content[previous[0]]
+        content[language] = {
+          ...source,
+          background: '',
+          images: {},
+          style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
+          config: {
+            ...source.config,
+            ...(autoTranslate ? {} : { name: '', intro: '', question: '', cta: '', items: '', tasks: '', metadata: '', infoTags: [], schedule: '', helper: '', body: '', status: '', pollOptions: [], moreLabel: '', moreLink: '', secondaryCta: '', secondaryCtaLink: '', ctaLink: '', links: '' }),
+          },
+        }
+      })
+      return { ...item, content }
+    }))
+    if (!normalized.includes(previewLanguage)) setPreviewLanguage(normalized[0])
+    setShowLanguageDialog(false)
+    flash(autoTranslate ? '已添加内容语言并生成翻译初稿' : '已添加内容语言')
+  }
+
+  if (view === 'list') {
+    return (
+      <AdminFrame review={review} setReview={setReview}>
+        <ActivityList
+          onCreate={() => {
+            setView('editor')
+            setTab('basic')
+          }}
+          onEdit={() => {
+            setView('editor')
+            setTab('modules')
+          }}
+          onCopy={() => flash('活动副本已创建')}
+          toast={toast}
+        />
+      </AdminFrame>
+    )
+  }
+
+  return (
+    <AdminFrame review={review} setReview={setReview}>
+      <main className="editor-page">
+        <div className="editor-titlebar">
+          <button className="icon-button subtle" onClick={() => setView('list')} aria-label="返回列表"><ArrowLeft size={20} /></button>
+          <strong>编辑 H5 活动</strong>
+          <span className="editor-id">ID: film-h5-changan-2026</span>
+        </div>
+        <div className="editor-tabs">
+          <button className={tab === 'basic' ? 'active' : ''} onClick={() => setTab('basic')}>基本设置</button>
+          <button className={tab === 'modules' ? 'active' : ''} onClick={() => setTab('modules')}>模块配置</button>
+          <button className={tab === 'advanced' ? 'active' : ''} onClick={() => setTab('advanced')}>高级条件</button>
+        </div>
+
+        {tab === 'basic' && (
+          <BasicSettings
+            flash={flash}
+            languages={contentLanguages}
+            onManageLanguages={() => {
+              setPendingLanguages(contentLanguages)
+              setShowLanguageDialog(true)
+            }}
+          />
+        )}
+        {tab === 'advanced' && <AdvancedSettings flash={flash} />}
+        {tab === 'modules' && (
+          <section className="configuration-workbench">
+            <aside className="module-rail">
+              <div className="rail-heading">
+                <div>
+                  <strong>模块添加及顺序</strong>
+                  <span>{modules.length} 个模块</span>
+                </div>
+                <button className="small-icon" title="模块说明"><CircleHelp size={16} /></button>
+              </div>
+              <div className="module-list">
+                {modules.map((item, index) => (
+                  <button
+                    key={item.id}
+                    className={`module-row ${item.id === selectedId ? 'selected' : ''} ${item.enabled ? '' : 'disabled'}`}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <span className="module-index">{String(index + 1).padStart(2, '0')}</span>
+                    <GripVertical size={16} className="grip" />
+                    <span className="module-name">{item.label}</span>
+                    {!item.enabled && <span className="off-tag">已隐藏</span>}
+                    <ChevronRight size={15} />
+                  </button>
+                ))}
+              </div>
+              <button className="primary add-module" onClick={() => setShowLibrary(!showLibrary)}><Plus size={17} /> 添加</button>
+              {showLibrary && (
+                <div className="module-library">
+                  <div className="library-head"><span>添加模块</span><button onClick={() => setShowLibrary(false)}><X size={15} /></button></div>
+                  <div className="library-grid">
+                    {(Object.keys(moduleDefinitions) as ModuleKind[]).map((kind) => (
+                      <button key={kind} onClick={() => addModule(kind)}>
+                        <span>{moduleDefinitions[kind].fr}</span>{moduleDefinitions[kind].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
+
+            <section className="module-editor">
+              <div className="module-editor-top">
+                <div>
+                  <span className="eyebrow">当前模块</span>
+                  <h1>{selected.label}</h1>
+                </div>
+                <div className="module-actions">
+                  <button className="control-icon" onClick={() => moveModule(-1)} title="上移"><ChevronLeft size={18} /></button>
+                  <button className="control-icon" onClick={() => moveModule(1)} title="下移"><ChevronRight size={18} /></button>
+                  <button className="control-icon" onClick={duplicateModule} title="复制"><Copy size={16} /></button>
+                  <button className="control-icon danger" onClick={deleteModule} title="删除"><Trash2 size={16} /></button>
+                </div>
+              </div>
+              <ModuleForm
+                selected={selected}
+                languages={contentLanguages}
+                updateModule={updateModule}
+                updateContent={updateContent}
+                updateConfig={updateConfig}
+                onFocusPreviewField={focusPreviewField}
+                flash={flash}
+                onAddLanguage={() => {
+                  setPendingLanguages(contentLanguages)
+                  setShowLanguageDialog(true)
+                }}
+              />
+            </section>
+
+            <section className="preview-area">
+              <div className="preview-toolbar">
+                <span><Film size={16} /> 用户端实时预览</span>
+                <div className="preview-actions">
+                  <label className="preview-language">预览语言
+                    <select value={previewLanguage} onChange={(event) => setPreviewLanguage(event.target.value as Language)}>
+                      {contentLanguages.map((language) => <option key={language} value={language}>{languageLabels[language]}</option>)}
+                    </select>
+                  </label>
+                  <button className={`review-toggle ${review ? 'on' : ''}`} onClick={() => setReview(!review)}><span /> Review</button>
+                </div>
+              </div>
+              <div className={`preview-stage ${review ? 'reviewing' : ''}`}>
+                {review && <ReviewRules modules={enabledModules} selectedId={selectedId} onSelect={setSelectedId} />}
+                <PhonePreview
+                  modules={enabledModules}
+                  language={previewLanguage}
+                  selectedId={selectedId}
+                  onSelectModule={(id) => { setSelectedId(id); setPreviewFocus(null) }}
+                  review={review}
+                  state={previewState}
+                  setState={setPreviewState}
+                  flash={flash}
+                  focus={previewFocus}
+                />
+              </div>
+            </section>
+          </section>
+        )}
+        <footer className="sticky-actions">
+          <button className="secondary" onClick={() => setView('list')}>取消</button>
+          <button className="secondary" onClick={() => flash('草稿已暂存')}>暂存</button>
+          <button className="primary" onClick={() => flash('配置已确认')}>确认</button>
+        </footer>
+      </main>
+      {toast && <div className="toast"><Check size={16} />{toast}</div>}
+      {showLanguageDialog && (
+        <LanguageDialog
+          selected={pendingLanguages}
+          autoTranslate={autoTranslate}
+          onToggle={(language) => setPendingLanguages((items) => (items.includes(language) ? items.filter((item) => item !== language) : [...items, language]))}
+          onToggleAuto={() => setAutoTranslate(!autoTranslate)}
+          onClose={() => setShowLanguageDialog(false)}
+          onConfirm={saveLanguages}
+        />
+      )}
+    </AdminFrame>
+  )
+}
+
+function AdminFrame({ children, review, setReview }: { children: React.ReactNode; review: boolean; setReview: (value: boolean) => void }) {
+  return (
+    <div className="admin-shell">
+      <div className="admin-content">
+        <header className="top-bar">
+          <div className="breadcrumbs"><Menu size={19} /><span>站点管理</span><ChevronRight size={16} /><span>H5活动配置</span></div>
+          <div className="top-actions">
+            <button className={`top-review ${review ? 'selected' : ''}`} onClick={() => setReview(!review)}>Review</button>
+            <span>测试环境</span><ChevronDown size={15} />
+            <button><Search size={19} /></button><button><Languages size={18} /></button><div className="operator"><span>林</span>林凡 Frank</div>
+          </div>
+        </header>
+        <div className="tab-strip"><span>工作台</span><strong>H5活动配置 <X size={14} /></strong></div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function ActivityList({ onCreate, onEdit, onCopy, toast }: { onCreate: () => void; onEdit: () => void; onCopy: () => void; toast: string }) {
+  const rows = [
+    ['film-h5-changan-2026', '长安花笺 · 海外剧集专区', '2026-08-20 09:00:00', '2026-09-20 23:59:59', '罗凯鑫 Robert', '2026-08-20 10:20:08'],
+    ['clip-share-test-001', '卡片分享测试', '2026-08-07 00:00:00', '2026-08-31 23:59:59', '罗凯鑫 Robert', '2026-08-19 16:40:38'],
+    ['test-film-entry-21', 'test', '2026-08-06 10:13:31', '2026-08-08 23:59:59', '彭钰菲 Phoebe', '2026-08-06 11:55:44'],
+  ]
+  return (
+    <main className="list-page">
+      <section className="filter-panel">
+        <label>ID<input placeholder="请输入" /></label>
+        <label>描述<input placeholder="请输入" /></label>
+        <label>页面归属<select defaultValue=""><option value="" disabled>请选择</option><option>影视专区</option></select></label>
+        <label>使用场景<select defaultValue=""><option value="" disabled>请选择</option><option>活动页</option></select></label>
+        <div className="filter-actions"><button className="secondary">重置</button><button className="primary">查询</button></div>
+      </section>
+      <section className="table-wrap">
+        <div className="table-actions"><button className="secondary"><Clipboard size={15} /> 从剪贴板导入</button><button className="primary" onClick={onCreate}><Plus size={17} /> 新增</button></div>
+        <table>
+          <thead><tr><th>ID</th><th>描述</th><th>链接</th><th>二维码</th><th>配置状态</th><th>暂存状态</th><th>活动开始时间</th><th>活动结束时间</th><th>操作人</th><th>创建时间</th><th>更新时间</th><th>操作</th></tr></thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={row[0]}>
+                <td className="id-cell">{row[0]}</td><td>{row[1]}</td>
+                <td className="url-cell">https://qtest.hellotalk8.com/film/changan?configId={index ? '6a7...' : 'film-h5-changan-2026'}</td>
+                <td><QrCode size={20} /></td><td><span className="switch"><i /></span></td><td><span className="yes-tag">否</span></td>
+                <td>{row[2]}</td><td>{row[3]}</td><td>{row[4]}</td><td>2026-08-20<br />10:20:08</td><td>{row[5]}</td>
+                <td className="row-actions"><button onClick={onEdit}>编辑</button><button onClick={onCopy}>复制</button><button onClick={() => navigator.clipboard?.writeText(`https://qtest.hellotalk8.com/film/changan`)}>剪贴板</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="pagination"><span>共 511 条数据</span><button className="current">1</button><button>2</button><button>3</button><button>4</button><button>5</button><span>…</span><button>11</button><ChevronRight size={16} /><select defaultValue="50"><option value="50">50 条/页</option></select><span>跳至</span><input /><span>页</span></div>
+      </section>
+      {toast && <div className="toast"><Check size={16} />{toast}</div>}
+    </main>
+  )
+}
+
+function BasicSettings({ flash, languages, onManageLanguages }: { flash: (value: string) => void; languages: Language[]; onManageLanguages: () => void }) {
+  return (
+    <section className="simple-settings">
+      <h2>基本设置</h2>
+      <div className="form-grid">
+        <label>活动描述<input defaultValue="长安花笺 · 海外剧集专区" /></label>
+        <label>页面归属<select defaultValue="影视专区"><option>影视专区</option></select></label>
+        <label>使用场景<select defaultValue="H5 活动"><option>H5 活动</option></select></label>
+        <label>活动开始时间<input type="datetime-local" defaultValue="2026-08-20T09:00" /></label>
+        <label>活动结束时间<input type="datetime-local" defaultValue="2026-09-20T23:59" /></label>
+        <label>内容语言<div className="language-summary"><span>{languages.map((language) => languageLabels[language]).join('、')}</span><button className="secondary" onClick={onManageLanguages}>管理语言</button></div></label>
+      </div>
+      <div className="asset-row"><Image size={20} /><div><strong>头图素材</strong><span>用户端图片与文字均在模块中按内容语言分别配置</span></div><button className="primary"><Upload size={15} /> 上传</button><button className="secondary" onClick={() => flash('已打开多语言文档配置')}>一键上传多语言文档</button></div>
+    </section>
+  )
+}
+
+function AdvancedSettings({ flash }: { flash: (value: string) => void }) {
+  return (
+    <section className="simple-settings">
+      <h2>高级条件</h2>
+      <div className="condition-card">
+        <div><strong>目标地区</strong><span>仅对非中国区用户展示</span></div><div className="condition-tags"><span>US</span><span>JP</span><span>BR</span><span>GB</span><button><Plus size={14} /></button></div>
+      </div>
+      <div className="condition-card"><div><strong>登录状态</strong><span>未登录用户可浏览，互动时引导登录</span></div><span className="switch"><i /></span></div>
+      <div className="condition-card"><div><strong>AB 实验</strong><span>影视专区H5实验组</span></div><button className="secondary" onClick={() => flash('高级条件已保存')}><Settings2 size={15} /> 配置</button></div>
+    </section>
+  )
+}
+
+function ModuleForm({ selected, languages, updateModule, updateContent, updateConfig, onFocusPreviewField, flash, onAddLanguage }: {
+  selected: PageModule
+  languages: Language[]
+  updateModule: (patch: Partial<Omit<PageModule, 'content'>>) => void
+  updateContent: (language: Language, patch: Partial<LocalizedContent>) => void
+  updateConfig: (language: Language, key: keyof ModuleConfig, value: string) => void
+  onFocusPreviewField: (language: Language, field: PreviewFocus['field']) => void
+  flash: (value: string) => void
+  onAddLanguage: () => void
+}) {
+  const hasDisplayImage = selected.kind !== 'clips' && imageSlots[selected.kind].length > 0
+  const infoTagCounter = useRef(0)
+  const usesExistingConfig = ['topic', 'posts', 'voice', 'live'].includes(selected.kind)
+  if (usesExistingConfig) {
+    return (
+      <div className="module-form existing-config-form">
+        <section className="existing-config-notice">使用目前已有的配置。</section>
+      </div>
+    )
+  }
+
+  const colorValue = (language: Language, field: StyleField, fallback = '#1f2329') => selected.content[language].style?.textColors[field] ?? fallback
+  const updateTextColor = (language: Language, field: StyleField, color: string) => {
+    const currentStyle = selected.content[language].style ?? defaultContentStyle
+    updateContent(language, { style: { ...currentStyle, textColors: { ...currentStyle.textColors, [field]: color }, fontSizes: { ...currentStyle.fontSizes } } })
+  }
+  const updateBackgroundColor = (language: Language, color: string) => {
+    const currentStyle = selected.content[language].style ?? defaultContentStyle
+    updateContent(language, { style: { ...currentStyle, backgroundColor: color, textColors: { ...currentStyle.textColors }, fontSizes: { ...currentStyle.fontSizes } } })
+  }
+  const updateFontSize = (language: Language, field: StyleField, value: string) => {
+    const currentStyle = selected.content[language].style ?? defaultContentStyle
+    const fontSizes = { ...currentStyle.fontSizes }
+    if (value === '') delete fontSizes[field]
+    else fontSizes[field] = Math.min(48, Math.max(8, Number(value)))
+    updateContent(language, { style: { ...currentStyle, textColors: { ...currentStyle.textColors }, fontSizes } })
+  }
+  const colorControl = (language: Language, field: StyleField, fallback?: string) => (
+    <label className="field-color" title="文字颜色">
+      <input type="color" value={colorValue(language, field, fallback)} onFocus={() => onFocusPreviewField(language, field)} onChange={(event) => updateTextColor(language, field, event.target.value)} />
+    </label>
+  )
+  const fontSizeControl = (language: Language, field: StyleField) => (
+    <label className="field-font-size" title="字号">
+      <input type="number" min="8" max="48" step="1" value={selected.content[language].style?.fontSizes[field] ?? ''} placeholder="字号" onFocus={() => onFocusPreviewField(language, field)} onChange={(event) => updateFontSize(language, field, event.target.value)} />
+    </label>
+  )
+  const updateImage = (language: Language, key: string, value: string) => {
+    updateContent(language, { images: { ...selected.content[language].images, [key]: value } })
+  }
+  const imageRow = (language: Language, slot: { key: string; label: string }) => (
+    <div className="localized-row image-row" key={`${language}-${slot.key}`}>
+      <select value={language} disabled><option>{languageLabels[language]} · {slot.label}</option></select>
+      <input value={selected.content[language].images?.[slot.key] ?? ''} onFocus={() => onFocusPreviewField(language, `image:${slot.key}`)} onChange={(event) => updateImage(language, slot.key, event.target.value)} placeholder={`${slot.label} 图片链接`} />
+      <button className="primary"><Upload size={14} /> 上传</button>
+      <button className="row-remove" onClick={() => updateImage(language, slot.key, '')} title={`移除${slot.label}`}><X size={15} /></button>
+    </div>
+  )
+
+  const titleRow = (language: Language) => (
+    <div className="localized-row" key={`${language}-title`}>
+      <select value={language} disabled><option>{languageLabels[language]}</option></select>
+      <input value={selected.content[language].title} onFocus={() => onFocusPreviewField(language, 'title')} onChange={(event) => updateContent(language, { title: event.target.value })} placeholder={`${languageLabels[language]} 标题`} />
+      {colorControl(language, 'title', selected.titleColor)}
+      {fontSizeControl(language, 'title')}
+      {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { title: '' })} title="清空该语言标题"><X size={15} /></button>}
+    </div>
+  )
+
+  const textRows = (label: string, key: TextConfigKey, multiline = false, required = false) => (
+    <section className="localized-field">
+      <div className="localized-field-label">{required && <span className="required-mark">*</span>}{label}</div>
+      {languages.map((language) => (
+        <div className="localized-row" key={`${language}-${key}`}>
+          <select value={language} disabled><option>{languageLabels[language]}</option></select>
+          {multiline
+            ? <textarea value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder={`${languageLabels[language]} ${label}`} />
+          : <input value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder={`${languageLabels[language]} ${label}`} />}
+          {colorControl(language, key)}
+          {fontSizeControl(language, key)}
+          {language !== 'English' && <button className="row-remove" onClick={() => updateConfig(language, key, '')} title="清空该语言内容"><X size={15} /></button>}
+        </div>
+      ))}
+    </section>
+  )
+
+  const linkRows = (label: string, key: TextConfigKey) => (
+    <section className="localized-field">
+      <div className="localized-field-label">{label}</div>
+      {languages.map((language) => (
+        <div className="localized-row link-row" key={`${language}-${key}`}>
+          <select value={language} disabled><option>{languageLabels[language]}</option></select>
+          <input type="url" value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder="https://" />
+          {language !== 'English' && <button className="row-remove" onClick={() => updateConfig(language, key, '')} title="清空该语言链接"><X size={15} /></button>}
+        </div>
+      ))}
+    </section>
+  )
+
+  const updatePollOptions = (language: Language, options: string[]) => {
+    updateContent(language, { config: { ...selected.content[language].config, pollOptions: options } })
+  }
+  const pollOptionRows = () => (
+    <section className="localized-field">
+      <div className="localized-field-label"><span className="required-mark">*</span>投票选项</div>
+      {languages.map((language) => {
+        const options = selected.content[language].config.pollOptions ?? []
+        return <div className="poll-option-editor" key={`${language}-poll-options`}>
+          <div className="poll-option-language">{languageLabels[language]}</div>
+          {options.map((option, index) => (
+            <div className="localized-row" key={`${language}-poll-option-${index}`}>
+              <span className="option-order">选项 {index + 1}</span>
+              <input value={option} onFocus={() => onFocusPreviewField(language, 'pollOptions')} onChange={(event) => updatePollOptions(language, options.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder="输入选项文案" />
+              {colorControl(language, 'pollOptions', '#934741')}
+              {fontSizeControl(language, 'pollOptions')}
+              <button className="row-remove" onClick={() => updatePollOptions(language, options.filter((_, itemIndex) => itemIndex !== index))} title="删除选项"><X size={15} /></button>
+            </div>
+          ))}
+          <button type="button" className="secondary add-option" onClick={() => updatePollOptions(language, [...options, `选项 ${options.length + 1}`])}><Plus size={15} /> 添加选项</button>
+        </div>
+      })}
+    </section>
+  )
+
+  const structuredRows = (label: string, key: keyof ModuleConfig, columns: string[]) => (
+    <section className="localized-field">
+      <div className="localized-field-label"><span className="required-mark">*</span>{label}</div>
+      {languages.map((language) => {
+        const rows = String(selected.content[language].config[key] ?? '').split('\n').filter(Boolean).map((item) => item.split('｜'))
+        const updateRows = (nextRows: string[][]) => updateConfig(language, key, nextRows.map((row) => row.join('｜')).join('\n'))
+        const columnColorFallback = (columnIndex: number) => {
+          if (selected.kind === 'cast') return columnIndex === 0 ? '#2b2624' : '#987c6d'
+          if (selected.kind === 'ranking') return columnIndex === 0 ? '#fff' : '#ffdcba'
+          if (selected.kind === 'topic') return columnIndex === 0 ? '#2b2624' : '#87756b'
+          return '#1f2329'
+        }
+        return <div className="structured-editor" key={`${language}-${key}`}>
+          <div className="structured-head"><b>{languageLabels[language]}</b><div className="structured-style-controls">{columns.map((column, columnIndex) => {
+            const field = `structured:${String(key)}:${columnIndex}` as StyleField
+            return <span className="structured-style-control" key={column}><em>{column}</em>{colorControl(language, field, columnColorFallback(columnIndex))}{fontSizeControl(language, field)}</span>
+          })}</div></div>
+          {rows.map((row, rowIndex) => (
+            <div className="structured-item" key={`${language}-${key}-${rowIndex}`}>
+              <span>{rowIndex + 1}</span>
+              {columns.map((column, columnIndex) => {
+                const field = `structured:${String(key)}:${columnIndex}` as StyleField
+                return <label key={column}>{column}<input value={row[columnIndex] ?? ''} onFocus={() => onFocusPreviewField(language, field)} onChange={(event) => updateRows(rows.map((currentRow, currentIndex) => currentIndex === rowIndex ? currentRow.map((value, valueIndex) => valueIndex === columnIndex ? event.target.value : value) : currentRow))} /></label>
+              })}
+              <button className="row-remove" onClick={() => updateRows(rows.filter((_, index) => index !== rowIndex))} title="删除条目"><X size={15} /></button>
+            </div>
+          ))}
+          <button className="secondary add-option" onClick={() => updateRows([...rows, columns.map(() => '')])}><Plus size={15} /> 添加条目</button>
+        </div>
+      })}
+    </section>
+  )
+
+  const infoTagRows = () => (
+    <section className="localized-field">
+      <div className="localized-field-label"><span className="required-mark">*</span>自定义标签</div>
+      {languages.map((language) => {
+        const tags = selected.content[language].config.infoTags ?? []
+        const updateTags = (nextTags: InfoTag[]) => updateContent(language, { config: { ...selected.content[language].config, infoTags: nextTags } })
+        const updateTag = (index: number, patch: Partial<InfoTag>) => updateTags(tags.map((tag, tagIndex) => tagIndex === index ? { ...tag, ...patch } : tag))
+        return <div className="info-tag-editor" key={`${language}-info-tags`}>
+          <div className="structured-head"><b>{languageLabels[language]}</b><span>标签按行、位自动排序</span></div>
+          {tags.map((tag, index) => (
+            <div className="info-tag-item" key={tag.id}>
+              <span>{index + 1}</span>
+              <label>标签文案<input value={tag.text} onFocus={() => onFocusPreviewField(language, `tag:${tag.id}`)} onChange={(event) => updateTag(index, { text: event.target.value })} placeholder="输入标签文案" /></label>
+              <label>展示行<select value={tag.row} onFocus={() => onFocusPreviewField(language, `tag:${tag.id}`)} onChange={(event) => updateTag(index, { row: Number(event.target.value) })}>{Array.from({ length: 8 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>第 {value} 行</option>)}</select></label>
+              <label>展示位<select value={tag.position} onFocus={() => onFocusPreviewField(language, `tag:${tag.id}`)} onChange={(event) => updateTag(index, { position: Number(event.target.value) })}>{Array.from({ length: 8 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>第 {value} 位</option>)}</select></label>
+              <label className="tag-color" title="标签颜色"><span>颜色</span><input type="color" value={tag.color} onFocus={() => onFocusPreviewField(language, `tag:${tag.id}`)} onChange={(event) => updateTag(index, { color: event.target.value })} /></label>
+              <label>字号<input type="number" min="8" max="48" value={tag.fontSize} onFocus={() => onFocusPreviewField(language, `tag:${tag.id}`)} onChange={(event) => updateTag(index, { fontSize: Math.min(48, Math.max(8, Number(event.target.value || 8))) })} /></label>
+              <button className="row-remove" onClick={() => updateTags(tags.filter((_, tagIndex) => tagIndex !== index))} title="删除标签"><X size={15} /></button>
+            </div>
+          ))}
+          <button className="secondary add-option" onClick={() => { infoTagCounter.current += 1; const row = tags.length ? Math.max(...tags.map((tag) => tag.row)) : 1; const position = tags.filter((tag) => tag.row === row).length + 1; updateTags([...tags, { id: `info-tag-${infoTagCounter.current}`, text: '新标签', row, position, color: '#2b2624', fontSize: 12 }]) }}><Plus size={15} /> 添加标签</button>
+        </div>
+      })}
+    </section>
+  )
+
+  const clipResourceRows = () => (
+    <section className="localized-field">
+      <div className="localized-field-label"><span className="required-mark">*</span>剧情切片列表</div>
+      {languages.map((language) => {
+        const content = selected.content[language]
+        const names = String(content.config.items ?? '').split('\n').filter(Boolean)
+        const links = String(content.config.links ?? '').split('\n').filter(Boolean)
+        const rowCount = Math.max(names.length, links.length, 1)
+        const resources = Array.from({ length: rowCount }, (_, index) => ({ name: names[index] ?? '', image: content.images?.[`clip-${index + 1}`] ?? '', link: links[index] ?? '' }))
+        const updateResources = (nextResources: typeof resources) => {
+          const nonClipImages = Object.fromEntries(Object.entries(content.images ?? {}).filter(([key]) => !key.startsWith('clip-')))
+          updateContent(language, {
+            images: { ...nonClipImages, ...Object.fromEntries(nextResources.map((resource, index) => [`clip-${index + 1}`, resource.image])) },
+            config: { ...content.config, items: nextResources.map((resource) => resource.name).join('\n'), links: nextResources.map((resource) => resource.link).join('\n') },
+          })
+        }
+        return <div className="clip-resource-editor" key={`${language}-clip-resources`}>
+          <div className="structured-head"><b>{languageLabels[language]}</b><span>{colorControl(language, 'items', '#fff')}{fontSizeControl(language, 'items')}</span></div>
+          {resources.map((resource, index) => (
+            <div className="clip-resource-item" key={`${language}-clip-${index}`}>
+              <span>{index + 1}</span>
+              <label>名称<input value={resource.name} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateResources(resources.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} placeholder="切片名称" /></label>
+              <label>外显预览图<div className="clip-image-input"><input value={resource.image} onFocus={() => onFocusPreviewField(language, `image:clip-${index + 1}`)} onChange={(event) => updateResources(resources.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="图片链接" /><button className="secondary" title="上传预览图"><Upload size={14} /></button></div></label>
+              <label>点击跳转链接<input type="url" value={resource.link} onFocus={() => onFocusPreviewField(language, 'links')} onChange={(event) => updateResources(resources.map((item, itemIndex) => itemIndex === index ? { ...item, link: event.target.value } : item))} placeholder="https://" /></label>
+              <button className="row-remove" onClick={() => updateResources(resources.filter((_, itemIndex) => itemIndex !== index))} title="删除切片"><X size={15} /></button>
+            </div>
+          ))}
+          <button className="secondary add-option" onClick={() => updateResources([...resources, { name: '', image: '', link: '' }])}><Plus size={15} /> 添加切片</button>
+        </div>
+      })}
+    </section>
+  )
+
+  const special = (
+    <>
+      {selected.kind === 'hero' && <>{textRows('剧集名称', 'name', false, true)}{textRows('顶部提示', 'metadata')}{textRows('备注文案', 'schedule')}{textRows('按钮文案', 'cta')}{linkRows('按钮跳转链接', 'ctaLink')}</>}
+      {selected.kind === 'info' && <>{textRows('剧集名称', 'name', false, true)}{infoTagRows()}{textRows('剧情简介', 'intro', true)}</>}
+      {selected.kind === 'cast' && <>{structuredRows('演员列表', 'items', ['演员名', '角色名'])}{textRows('更多入口文案', 'moreLabel')}{linkRows('更多跳转链接', 'moreLink')}</>}
+      {selected.kind === 'clips' && <>{clipResourceRows()}{textRows('更多入口文案', 'moreLabel')}{linkRows('更多跳转链接', 'moreLink')}</>}
+      {selected.kind === 'poll' && <>{textRows('投票题目', 'question', false, true)}{pollOptionRows()}{textRows('投票说明', 'helper')}</>}
+      {selected.kind === 'ranking' && <>{structuredRows('排行榜角色', 'items', ['角色名', '热力值'])}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{linkRows('助力跳转链接', 'ctaLink')}</>}
+      {selected.kind === 'banner' && <>{textRows('Banner 标识', 'name')}{textRows('跳转说明', 'helper')}{textRows('跳转文案', 'cta')}{linkRows('跳转链接', 'ctaLink')}</>}
+      {selected.kind === 'topic' && <>{structuredRows('话题列表', 'items', ['话题', '话题说明'])}{textRows('主操作文案', 'cta')}{linkRows('主操作跳转链接', 'ctaLink')}{textRows('次操作文案', 'secondaryCta')}{linkRows('次操作跳转链接', 'secondaryCtaLink')}</>}
+      {selected.kind === 'posts' && textRows('展示帖文', 'items', true)}
+      {selected.kind === 'voice' && <>{textRows('状态标签', 'status')}{textRows('语聊房列表', 'items', true)}{textRows('在线人数列表', 'helper', true)}</>}
+      {selected.kind === 'live' && <>{textRows('状态标签', 'status')}{textRows('直播列表', 'items', true)}{textRows('直播时间列表', 'helper', true)}</>}
+    </>
+  )
+
+  return (
+    <div className="module-form multilingual-form">
+      <section className="upload-block multilingual-head">
+        <div className="block-label">多语言内容 <button className="ai-upload" onClick={() => flash('已打开多语言文档上传') }><Sparkles size={14} /> 一键上传多语言文档 <ChevronDown size={14} /></button></div>
+        <p>所有面向用户展示的图片与文字，均按语言分别配置。</p>
+      </section>
+      {hasDisplayImage && <section className="localized-field">
+        <div className="localized-field-label"><span className="required-mark">*</span>图片</div>
+        {languages.flatMap((language) => imageSlots[selected.kind].map((slot) => imageRow(language, slot)))}
+        <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button><button className="secondary"><Image size={15} /> 批量上传图片</button></div>
+      </section>}
+      <section className="localized-field">
+        <div className="localized-field-label">模块背景色</div>
+        {languages.map((language) => (
+          <div className="localized-row style-row" key={`${language}-background-color`}>
+            <select value={language} disabled><option>{languageLabels[language]}</option></select>
+            <input value={selected.content[language].style?.backgroundColor ?? defaultContentStyle.backgroundColor} onFocus={() => onFocusPreviewField(language, 'background')} onChange={(event) => updateBackgroundColor(language, event.target.value)} />
+            <label className="field-color" title="模块背景色"><input type="color" value={selected.content[language].style?.backgroundColor ?? defaultContentStyle.backgroundColor} onFocus={() => onFocusPreviewField(language, 'background')} onChange={(event) => updateBackgroundColor(language, event.target.value)} /></label>
+          </div>
+        ))}
+      </section>
+      <section className="localized-field">
+        <div className="localized-field-label">前端分区编号</div>
+        <div className="localized-row style-row">
+          <span className="option-order">编号</span>
+          <input value={selected.displayIndex} onFocus={() => onFocusPreviewField(languages[0], 'displayIndex')} onChange={(event) => updateModule({ displayIndex: event.target.value })} placeholder="例如 01；留空则不展示" />
+          <span />
+        </div>
+      </section>
+      {selected.kind !== 'hero' && <section className="localized-field">
+        <div className="localized-field-label">标题</div>
+        {languages.map(titleRow)}
+        <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button></div>
+      </section>}
+      {selected.kind !== 'hero' && <section className="localized-field">
+        <div className="localized-field-label">副标题</div>
+        {languages.map((language) => (
+          <div className="localized-row" key={`${language}-subtitle`}>
+            <select value={language} disabled><option>{languageLabels[language]}</option></select>
+            <input value={selected.content[language].subtitle} onFocus={() => onFocusPreviewField(language, 'subtitle')} onChange={(event) => updateContent(language, { subtitle: event.target.value })} placeholder={`${languageLabels[language]} 副标题`} />
+            {colorControl(language, 'subtitle', '#9a8174')}
+            {fontSizeControl(language, 'subtitle')}
+            {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { subtitle: '' })} title="清空该语言副标题"><X size={15} /></button>}
+          </div>
+        ))}
+        <div className="localized-add"><button className="secondary" onClick={onAddLanguage}><Plus size={15} /> 添加语言</button></div>
+      </section>}
+      <div className="field-row">
+        <label className="toggle-field">前端展示<span className={`switch ${selected.enabled ? '' : 'off'}`} onClick={() => updateModule({ enabled: !selected.enabled })}><i /></span></label>
+      </div>
+      <div className="form-divider" />
+      {special}
+    </div>
+  )
+}
+
+function PhonePreview({ modules, language, selectedId, onSelectModule, review, state, setState, flash, focus }: {
+  modules: PageModule[]
+  language: Language
+  selectedId: string
+  onSelectModule: (id: string) => void
+  review: boolean
+  state: PreviewState
+  setState: (value: PreviewState) => void
+  flash: (value: string) => void
+  focus: PreviewFocus | null
+}) {
+  const moduleRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const cast = modules.find((item) => item.kind === 'cast')
+  const clips = modules.find((item) => item.kind === 'clips')
+  const ranking = modules.find((item) => item.kind === 'ranking')
+  const selectedModule = modules.find((item) => item.id === selectedId)
+  // Preview only reads the selected language. Missing localized data must stay empty.
+  const getContent = (module: PageModule | undefined) => module?.content[language]
+  const getImage = (module: PageModule | undefined, key: string) => getContent(module)?.images?.[key] ?? getContent(module)?.background ?? ''
+  const isFocused = (module: PageModule, field: PreviewFocus['field']) => focus?.moduleId === module.id && focus.language === language && focus.field === field
+  const isImageFocused = (module: PageModule) => focus?.moduleId === module.id && focus.language === language && focus.field.startsWith('image:')
+  const previewTextStyle = (module: PageModule, field: StyleField, fallback: string) => {
+    const style = getContent(module)?.style
+    const fontSize = style?.fontSizes[field]
+    return { color: style?.textColors[field] ?? fallback, ...(fontSize ? { fontSize: `${fontSize}px` } : {}) }
+  }
+  const getModuleStyle = (module: PageModule) => {
+    const content = getContent(module)
+    const primaryAsset = imageSlots[module.kind][0]?.key
+    return {
+      '--module-bg': content?.style?.backgroundColor ?? defaultContentStyle.backgroundColor,
+      '--module-title': content?.style?.textColors.title ?? module.titleColor,
+      '--module-subtitle': content?.style?.textColors.subtitle ?? '#9a8174',
+      '--module-art': primaryAsset && getImage(module, primaryAsset) ? `url("${getImage(module, primaryAsset)}")` : 'none',
+    } as React.CSSProperties
+  }
+  const splitLines = (value: string | undefined) => value?.split('\n').filter(Boolean) ?? []
+  const castList = splitLines(getContent(cast)?.config.items).map((item) => item.replaceAll('｜', ' · '))
+  const clipList = splitLines(getContent(clips)?.config.items)
+  const clipLinks = splitLines(getContent(clips)?.config.links)
+
+  useEffect(() => {
+    const target = moduleRefs.current[selectedId]
+    const scrollContainer = scrollRef.current
+    if (!target || !scrollContainer) return
+
+    scrollContainer.scrollTo({
+      top: Math.max(0, target.offsetTop - (scrollContainer.clientHeight - target.offsetHeight) / 2),
+      behavior: 'smooth',
+    })
+  }, [selectedId])
+
+  useEffect(() => {
+    if (focus?.moduleId === ranking?.id && focus?.field === 'tasks' && !state.rankingOpen) {
+      setState({ ...state, rankingOpen: true })
+    }
+  }, [focus, ranking?.id, setState, state])
+
+  return (
+    <div
+      className="phone-frame"
+      style={{ '--ranking-art': getImage(ranking, 'rank-1') ? `url("${getImage(ranking, 'rank-1')}")` : 'none' } as React.CSSProperties}
+    >
+      <div className="phone-status"><span>9:41</span><span>● ● ● ▰</span></div>
+      <div className="preview-current-module" aria-live="polite">
+        <span>正在配置</span>
+        <b>{selectedModule ? `${selectedModule.fr} · ${selectedModule.label}` : '未选择模块'}</b>
+      </div>
+      <div className="h5-scroll" ref={scrollRef}>
+        {state.screen === 'cast' ? <OverlayScreen title={getContent(cast)?.title ?? ''} onClose={() => setState({ ...state, screen: '' })} list={castList} images={imageSlots.cast.map((slot) => getImage(cast, slot.key))} /> : null}
+        {state.screen === 'clips' ? <OverlayScreen title={getContent(clips)?.title ?? ''} onClose={() => setState({ ...state, screen: '' })} list={clipList} images={clipList.map((_, index) => getImage(clips, `clip-${index + 1}`))} links={clipLinks} /> : null}
+        {modules.map((module) => (
+          <div
+            key={module.id}
+            ref={(element) => { moduleRefs.current[module.id] = element }}
+            className={`phone-module module-${module.kind} ${module.id === selectedId ? 'active-module' : ''} ${isFocused(module, 'background') ? 'preview-background-highlight' : ''} ${isImageFocused(module) ? 'preview-image-focus' : ''}`}
+            style={getModuleStyle(module)}
+            onClick={() => onSelectModule(module.id)}
+          >
+            {module.id === selectedId && <span className="preview-module-marker">当前配置</span>}
+            {review && <button className="fr-badge" onClick={(event) => { event.stopPropagation(); onSelectModule(module.id) }}>{module.fr}</button>}
+            {module.kind !== 'hero' && (getContent(module)?.title || getContent(module)?.subtitle) && <div className="phone-heading"><span><b className={isFocused(module, 'displayIndex') ? 'preview-field-highlight' : ''}>{module.displayIndex}</b><span className={isFocused(module, 'title') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'title', module.titleColor)}>{getContent(module)?.title}</span>{getContent(module)?.subtitle && <small className={isFocused(module, 'subtitle') ? 'preview-field-highlight' : ''} style={previewTextStyle(module, 'subtitle', '#9a8174')}>{getContent(module)?.subtitle}</small>}</span>{['cast', 'clips'].includes(module.kind) && <button className={`${isFocused(module, 'moreLabel') || isFocused(module, 'moreLink') ? 'preview-field-highlight' : ''}`} style={previewTextStyle(module, 'moreLabel', '#8b807a')} onClick={(e) => { e.stopPropagation(); const link = getContent(module)?.config.moreLink?.trim(); if (link) window.open(link, '_blank', 'noopener,noreferrer'); else setState({ ...state, screen: module.kind === 'cast' ? 'cast' : 'clips' }) }}>{getContent(module)?.config.moreLabel}</button>}</div>}
+            <PhoneModule module={module} content={getContent(module)!} language={language} state={state} setState={setState} flash={flash} focusField={focus?.moduleId === module.id && focus.language === language ? focus.field : null} />
+          </div>
+        ))}
+      </div>
+      {state.rankingOpen && <RankingSheet onClose={() => setState({ ...state, rankingOpen: false })} name={state.rankingName} heat={state.rankingHeat} tasks={getContent(ranking)?.config.tasks} language={language} highlightTasks={focus?.moduleId === ranking?.id && focus?.field === 'tasks'} />}
+    </div>
+  )
+}
+
+function PhoneModule({ module, content, language, state, setState, flash, focusField }: { module: PageModule; content: LocalizedContent; language: Language; state: PreviewState; setState: (value: PreviewState) => void; flash: (value: string) => void; focusField: PreviewFocus['field'] | null }) {
+  const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
+  const fieldStyle = (field: StyleField, fallback: string) => {
+    const fontSize = content.style?.fontSizes[field]
+    return { color: content.style?.textColors[field] ?? fallback, ...(fontSize ? { fontSize: `${fontSize}px` } : {}) }
+  }
+  const fieldClass = (field: PreviewFocus['field'], className = '') => `${className} ${focusField === field ? 'preview-field-highlight' : ''}`.trim()
+  const assetStyle = (key: string) => ({ '--asset-image': content.images?.[key] ? `url("${content.images[key]}")` : 'none' } as React.CSSProperties)
+  const splitLines = (value: string | undefined) => value?.split('\n').filter(Boolean) ?? []
+  const castEntries = splitLines(content.config.items).map((line) => line.split('｜'))
+  const clipEntries = splitLines(content.config.items)
+  const clipLinks = splitLines(content.config.links)
+  const infoTags = [...(content.config.infoTags ?? [])].sort((left, right) => left.row - right.row || left.position - right.position)
+  const rankingEntries = splitLines(content.config.items).map((line) => line.split('｜'))
+  const topicEntries = splitLines(content.config.items).map((line) => line.split('｜'))
+  const postEntries = splitLines(content.config.items)
+  const voiceEntries = splitLines(content.config.items)
+  const liveEntries = splitLines(content.config.items)
+  const helperEntries = splitLines(content.config.helper)
+  const openConfiguredLink = (link: string | undefined, fallback: string) => {
+    if (link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer')
+    else flash(fallback)
+  }
+  switch (module.kind) {
+    case 'hero':
+      return <div className="h5-hero"><div className="hero-brand">HelloTalk.</div><div className="hero-copy"><span className={fieldClass('metadata')} style={fieldStyle('metadata', '#fff')}>{content.config.metadata}</span><h1 className={fieldClass('name')} style={fieldStyle('name', '#fff5d8')}>{content.config.name}</h1><small className={fieldClass('schedule')} style={fieldStyle('schedule', '#fff')}>{content.config.schedule}</small><button className={`${fieldClass('cta')} ${fieldClass('ctaLink')}`} style={fieldStyle('cta', '#bd2f2d')} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置按钮跳转链接' : 'Add a button link first') }}>{content.config.cta} <ChevronRight size={14} /></button></div></div>
+    case 'info':
+      return <div className="info-card"><div className={fieldClass('image:poster', 'poster-tile')} style={assetStyle('poster')} /><div className="info-copy"><h2 className={fieldClass('name')} style={fieldStyle('name', '#2b2624')}>{content.config.name}</h2><div className="info-tags">{[...new Set(infoTags.map((tag) => tag.row))].map((row) => <div className="info-tag-row" key={row}>{infoTags.filter((tag) => tag.row === row).map((tag) => <span className={fieldClass(`tag:${tag.id}`, 'info-tag')} style={{ color: tag.color, fontSize: `${tag.fontSize}px` }} key={tag.id}>{tag.text}</span>)}</div>)}</div></div><p className={fieldClass('intro', 'info-intro')} style={fieldStyle('intro', '#564741')}>{content.config.intro}</p></div>
+    case 'cast':
+      return <div className="cast-strip">{castEntries.map(([name, role], i) => <div className="cast-person" key={`${name}-${i}`}><div className={fieldClass(`image:cast-${i + 1}`, 'portrait')} style={assetStyle(`cast-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#2b2624')}>{name}</b><span className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#987c6d')}>{role}</span></div>)}</div>
+    case 'clips':
+      return <div className="clips-row">{clipEntries.slice(0, 3).map((name, i) => <button className={`${fieldClass(`image:clip-${i + 1}`, 'clip-card')} ${fieldClass('links')}`} style={assetStyle(`clip-${i + 1}`)} key={`${name}-${i}`} onClick={(e) => { e.stopPropagation(); const link = clipLinks[i]?.trim(); if (link) window.open(link, '_blank', 'noopener,noreferrer'); else flash(isChinese ? '请先配置跳转链接' : 'Add a destination link first') }}><b className={fieldClass('items')} style={fieldStyle('items', '#fff')}>{name}</b></button>)}</div>
+    case 'poll': {
+      const options = content.config.pollOptions ?? []
+      const percent = options.length ? `${Math.round(100 / options.length)}%` : ''
+      const selectedOption = options[Number(state.vote)] ?? ''
+      const voteResult = isChinese ? `已投票支持 ${selectedOption}` : `You supported ${selectedOption}`
+      return <div className="poll-box"><p className={fieldClass('question')} style={fieldStyle('question', '#2b2624')}>{content.config.question}</p><div className={`poll-options ${options.length > 2 ? 'stacked' : ''}`}>{options.map((label, index) => <button style={!state.voted ? fieldStyle('pollOptions', '#934741') : undefined} className={`${state.voted && state.vote === String(index) ? 'voted' : ''} ${fieldClass('pollOptions')}`} key={`${label}-${index}`} onClick={(e) => { e.stopPropagation(); setState({ ...state, voted: true, vote: String(index) }) }}><span>{label}</span>{state.voted && <b>{percent}</b>}</button>)}</div><small className={state.voted ? 'poll-result' : fieldClass('helper')} style={state.voted ? undefined : fieldStyle('helper', '#a58a80')}>{state.voted ? voteResult : content.config.helper}</small></div>
+    }
+    case 'ranking':
+      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, heat], i) => <button key={`${name}-${i}`} className={`${fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} ${fieldClass('ctaLink')}`} onClick={(e) => { e.stopPropagation(); if (content.config.ctaLink?.trim()) openConfiguredLink(content.config.ctaLink, ''); else setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{heat}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
+    case 'banner':
+      return <button className={`${fieldClass('ctaLink', 'blue-banner')}`} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }}><b className={fieldClass('name')} style={fieldStyle('name', '#fff')}>{content.config.name}</b><span className={fieldClass('helper')} style={fieldStyle('helper', '#fff')}>{content.config.helper}</span><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta} <ExternalLink size={12} /></em></button>
+    case 'topic':
+      return <div className="topic-list">{topicEntries.map(([topic, description], i) => { const link = i === 0 ? content.config.ctaLink : content.config.secondaryCtaLink; return <button key={`${topic}-${i}`} className={fieldClass(i === 0 ? 'ctaLink' : 'secondaryCtaLink')} onClick={(e) => { e.stopPropagation(); openConfiguredLink(link, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }}><span className={fieldClass(`image:topic-${i + 1}`, 'topic-thumb')} style={assetStyle(`topic-${i + 1}`)} /><div><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#2b2624')}>{topic}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#87756b')}>{description}</small></div><em className={fieldClass(i === 0 ? 'cta' : 'secondaryCta')} style={fieldStyle(i === 0 ? 'cta' : 'secondaryCta', '#fff')}>{i === 0 ? content.config.cta : content.config.secondaryCta}</em></button> })}</div>
+    case 'posts':
+      return <div className="best-posts">{postEntries.slice(0, 2).map((item, i) => <div className={fieldClass(`image:post-${i + 1}`, 'post-tile')} style={assetStyle(`post-${i + 1}`)} key={`${item}-${i}`}><b className={fieldClass('items')} style={fieldStyle('items', '#fff')}>{item}</b></div>)}</div>
+    case 'voice':
+      return <div className="voice-row">{voiceEntries.slice(0, 2).map((item, i) => <div className={`voice-card ${i ? 'alt' : ''}`} key={`${item}-${i}`}><span className={fieldClass('status')} style={fieldStyle('status', '#fff')}>{content.config.status}</span><b className={fieldClass('items')} style={fieldStyle('items', '#fff')}>{item}</b><small className={fieldClass('helper')} style={fieldStyle('helper', '#fff')}>{helperEntries[i]}</small></div>)}</div>
+    case 'live':
+      return <div className="live-row">{liveEntries.slice(0, 2).map((item, i) => <div className={fieldClass(`image:live-${i + 1}`, 'live-card')} style={assetStyle(`live-${i + 1}`)} key={`${item}-${i}`}><em className={fieldClass('status')} style={fieldStyle('status', '#fff')}>{content.config.status}</em><b className={fieldClass('items')} style={fieldStyle('items', '#fff')}>{item}</b><span className={fieldClass('helper')} style={fieldStyle('helper', '#fff')}>{helperEntries[i]}</span></div>)}</div>
+  }
+}
+
+function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: { onClose: () => void; name: string; heat: string; tasks: string | undefined; language: Language; highlightTasks: boolean }) {
+  const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
+  const taskEntries = (tasks?.split('\n').filter(Boolean) ?? []).map((item) => item.split('｜'))
+  const copy = isChinese
+    ? { close: '关闭榜单任务', support: '助力', character: '角色', current: '当前角色热力值', total: '个人累计贡献', rank: '个人贡献排名', heading: '完成任务，为他增加热力值' }
+    : { close: 'Close ranking tasks', support: 'Support', character: 'character', current: 'Current popularity', total: 'Your total contribution', rank: 'Your contribution rank', heading: 'Complete tasks to add popularity' }
+  return <div className="phone-sheet"><div className="sheet-scrim" onClick={onClose} /><div className="sheet-content"><button className="sheet-close" onClick={onClose} aria-label={copy.close}><X size={18} /></button><div className="sheet-profile"><div className="small-rank-face" /><div><b>{copy.support} {name || copy.character}</b><span>{copy.current} {heat || '0'}</span></div></div><div className="contribution"><div><span>{copy.total}</span><b>180</b></div><div><span>{copy.rank}</span><b>NO. 125</b></div></div><h3>{copy.heading}</h3>{taskEntries.map(([task, reward, link], i) => <button className={`task-row ${highlightTasks ? 'preview-field-highlight' : ''}`} key={`${task}-${i}`} onClick={() => { if (link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer') }}><span className={`task-icon ti${(i % 4) + 1}`}>{i + 1}</span><b>{task}</b><em>{reward || '+0'}</em><ChevronRight size={16} /></button>)}</div></div>
+}
+
+function OverlayScreen({ title, list, onClose, images, links = [] }: { title: string; list: string[]; onClose: () => void; images: string[]; links?: string[] }) {
+  return <div className="h5-overlay"><header><button onClick={onClose}><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="overlay-list">{list.map((item, index) => {
+    const link = links[index]?.trim()
+    const row = <><div className="overlay-art" style={{ '--asset-image': images[index] ? `url("${images[index]}")` : 'none' } as React.CSSProperties} /><span><b>{item}</b></span><ChevronRight size={17} /></>
+    return link ? <button className="overlay-resource" key={`${item}-${index}`} onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}>{row}</button> : <div key={`${item}-${index}`}>{row}</div>
+  })}</div></div>
+}
+
+function ReviewRules({ modules, selectedId, onSelect }: { modules: PageModule[]; selectedId: string; onSelect: (id: string) => void }) {
+  const ruleRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  useEffect(() => {
+    ruleRefs.current[selectedId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [selectedId])
+
+  return <aside className="review-rules"><b>需求追踪</b>{modules.map((item) => <button ref={(element) => { ruleRefs.current[item.id] = element }} className={item.id === selectedId ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)}><span>{item.fr}</span>{item.label}<i /></button>)}</aside>
+}
+
+function LanguageDialog({ selected, autoTranslate, onToggle, onToggleAuto, onClose, onConfirm }: {
+  selected: Language[]
+  autoTranslate: boolean
+  onToggle: (language: Language) => void
+  onToggleAuto: () => void
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const allSelected = allLanguages.every((language) => selected.includes(language))
+  const toggleAll = () => {
+    allLanguages.forEach((language) => {
+      if (language === 'English') return
+      const currentlySelected = selected.includes(language)
+      if (allSelected ? currentlySelected : !currentlySelected) onToggle(language)
+    })
+  }
+  return (
+    <div className="dialog-overlay" role="presentation">
+      <section className="language-dialog" role="dialog" aria-modal="true" aria-labelledby="language-dialog-title">
+        <header>
+          <h2 id="language-dialog-title">添加语言</h2>
+          <button className="dialog-close" onClick={onClose} aria-label="关闭"><X size={19} /></button>
+        </header>
+        <div className="language-dialog-note">
+          <span>选择内容语言后，所有用户端图片与文字都会增加对应的语言配置行。</span>
+          <button onClick={toggleAll}>{allSelected ? '取消全选' : '全选'}</button>
+        </div>
+        <div className="language-grid">
+          {allLanguages.map((language) => {
+            const required = language === 'English'
+            const active = selected.includes(language)
+            return (
+              <button
+                key={language}
+                className={active ? 'selected' : ''}
+                disabled={required}
+                onClick={() => onToggle(language)}
+              >
+                <span>{languageLabels[language]}</span>
+                {active && <Check size={15} />}
+              </button>
+            )
+          })}
+        </div>
+        <div className="auto-translate-row">
+          <div><b>自动翻译</b><span>以 English 内容为源语言生成初稿；图片仍需按语言单独上传。</span></div>
+          <button className={`switch ${autoTranslate ? '' : 'off'}`} onClick={onToggleAuto} aria-label="自动翻译"><i /></button>
+        </div>
+        <footer><button className="secondary" onClick={onClose}>取消</button><button className="primary" onClick={onConfirm}>确定</button></footer>
+      </section>
+    </div>
+  )
+}
+
+export default App
