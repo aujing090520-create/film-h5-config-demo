@@ -183,7 +183,7 @@ const defaultModuleImages: Record<ModuleKind, Record<string, string>> = {
   cast: Object.fromEntries([1, 2, 3, 4].map((index) => [`cast-${index}`, `/film-assets/cast-${index}.png`])),
   clips: Object.fromEntries([1, 2, 3].map((index) => [`clip-${index}`, `/film-assets/clip-${index}.png`])),
   poll: {},
-  ranking: Object.fromEntries([1, 2, 3].map((index) => [`rank-${index}`, `/film-assets/rank-${index}.png`])),
+  ranking: Object.fromEntries([1, 2, 3].flatMap((index) => [[`rank-${index}`, `/film-assets/rank-${index}.png`], [`rank-task-${index}`, `/film-assets/rank-${index}.png`]])),
   banner: { banner: '/film-assets/hero-keyart.png' },
   topic: Object.fromEntries([1, 2, 3].map((index) => [`topic-${index}`, `/film-assets/topic-${index}.png`])),
   posts: Object.fromEntries([1, 2].map((index) => [`post-${index}`, `/film-assets/post-${index}.png`])),
@@ -247,6 +247,8 @@ type PreviewState = {
   rankingOpen: boolean
   rankingName: string
   rankingHeat: string
+  rankingImage: string
+  rankingTaskBackground: string
   screen: '' | 'cast' | 'clips' | 'ranking' | 'checkin'
 }
 
@@ -307,6 +309,8 @@ function App() {
     rankingOpen: false,
     rankingName: '',
     rankingHeat: '',
+    rankingImage: '',
+    rankingTaskBackground: '',
     screen: '',
   })
 
@@ -985,7 +989,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
               <button className="row-remove" onClick={() => updateResources(resources.filter((_, itemIndex) => itemIndex !== index))} title="删除切片"><X size={15} /></button>
             </div>
           ))}
-          <button className="secondary add-option" onClick={() => updateResources([...resources, { name: '', image: '', link: '' }])}><Plus size={15} /> 添加切片</button>
+          <button className="secondary add-option" onClick={() => updateResources([...resources, { name: language === 'English' ? 'New clip' : '新切片', image: '', link: '' }])}><Plus size={15} /> 添加切片</button>
         </div>
       })}
       {localizedActions('clip-resources')}
@@ -999,12 +1003,24 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
         const content = selected.content[language]
         const roles = String(content.config.items ?? '').split('\n').filter(Boolean).map((item, index) => {
           const [name = '', noteOne = '', noteTwo = ''] = item.split('｜')
-          return { name, noteOne, noteTwo, image: content.images?.[`rank-${index + 1}`] ?? '' }
+          return {
+            name,
+            noteOne,
+            noteTwo,
+            image: content.images?.[`rank-${index + 1}`] ?? '',
+            taskBackground: content.images?.[`rank-task-${index + 1}`] ?? '',
+          }
         })
         const updateRoles = (nextRoles: typeof roles) => {
           const nonRankingImages = Object.fromEntries(Object.entries(content.images ?? {}).filter(([key]) => !key.startsWith('rank-')))
           updateContent(language, {
-            images: { ...nonRankingImages, ...Object.fromEntries(nextRoles.map((role, index) => [`rank-${index + 1}`, role.image])) },
+            images: {
+              ...nonRankingImages,
+              ...Object.fromEntries(nextRoles.flatMap((role, index) => [
+                [`rank-${index + 1}`, role.image],
+                [`rank-task-${index + 1}`, role.taskBackground],
+              ])),
+            },
             config: { ...content.config, items: nextRoles.map((role) => [role.name, role.noteOne, role.noteTwo].join('｜')).join('\n') },
           })
         }
@@ -1014,11 +1030,12 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
             <span>{index + 1}</span>
             <label>角色名<input value={role.name} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></label>
             <label>角色图<div className="clip-image-input"><input value={role.image} onFocus={() => onFocusPreviewField(language, `image:rank-${index + 1}`)} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="图片链接" /><button className="secondary" title="上传角色图"><Upload size={14} /></button></div></label>
+            <label>助力任务背景图<div className="clip-image-input"><input value={role.taskBackground} onFocus={() => onFocusPreviewField(language, `image:rank-task-${index + 1}`)} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, taskBackground: event.target.value } : item))} placeholder="图片链接" /><button className="secondary" title="上传助力任务背景图"><Upload size={14} /></button></div></label>
             <label>备注一<input value={role.noteOne} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, noteOne: event.target.value } : item))} /></label>
             <label>备注二<input value={role.noteTwo} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, noteTwo: event.target.value } : item))} /></label>
             <button className="row-remove" onClick={() => updateRoles(roles.filter((_, itemIndex) => itemIndex !== index))} title="删除角色"><X size={15} /></button>
           </div>)}
-          <button className="secondary add-option" onClick={() => updateRoles([...roles, { name: '', noteOne: '', noteTwo: '', image: '' }])}><Plus size={15} /> 添加角色</button>
+          <button className="secondary add-option" onClick={() => updateRoles([...roles, { name: '', noteOne: '', noteTwo: '', image: '', taskBackground: '' }])}><Plus size={15} /> 添加角色</button>
         </div>
       })}
       {localizedActions('ranking-roles')}
@@ -1201,8 +1218,18 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
   const clipLinks = splitLines(getContent(clips)?.config.links)
   const rankingRoles = splitLines(getContent(ranking)?.config.items).map((item, index) => {
     const [name = '', noteOne = '', noteTwo = ''] = item.split('｜')
-    return { name, noteOne, noteTwo, image: getImage(ranking, `rank-${index + 1}`), heat: calculatedHeat(index, language) }
+    return {
+      name,
+      noteOne,
+      noteTwo,
+      image: getImage(ranking, `rank-${index + 1}`),
+      taskBackground: getImage(ranking, `rank-task-${index + 1}`),
+      heat: calculatedHeat(index, language),
+    }
   })
+  const focusedTaskBackgroundIndex = focus && focus.moduleId === ranking?.id && focus.language === language
+    ? Number(focus.field.match(/^image:rank-task-(\d+)$/)?.[1] ?? 0) - 1
+    : -1
 
   useEffect(() => {
     const target = moduleRefs.current[selectedId]
@@ -1219,7 +1246,11 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
     if (focus?.moduleId === ranking?.id && focus?.field === 'tasks' && !state.rankingOpen) {
       setState({ ...state, rankingOpen: true })
     }
-  }, [focus, ranking?.id, setState, state])
+    if (focusedTaskBackgroundIndex >= 0 && !state.rankingOpen) {
+      const role = rankingRoles[focusedTaskBackgroundIndex]
+      if (role) setState({ ...state, rankingOpen: true, rankingName: role.name, rankingHeat: role.heat, rankingImage: role.image, rankingTaskBackground: role.taskBackground })
+    }
+  }, [focus, focusedTaskBackgroundIndex, ranking?.id, rankingRoles, setState, state])
 
   return (
     <div
@@ -1234,7 +1265,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
       <div className="h5-scroll" ref={scrollRef}>
         {state.screen === 'cast' ? <OverlayScreen title={isChinese ? '全部演员' : 'All cast'} onClose={() => setState({ ...state, screen: '' })} list={castList} images={castList.map((_, index) => getImage(cast, `cast-${(index % imageSlots.cast.length) + 1}`))} /> : null}
         {state.screen === 'clips' ? <ClipLibraryScreen title={getContent(clips)?.title || ''} onClose={() => setState({ ...state, screen: '' })} clips={clipList.map((name, index) => ({ name, image: getImage(clips, `clip-${index + 1}`), link: clipLinks[index]?.trim() ?? '' }))} /> : null}
-        {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} roles={rankingRoles} background={getImage(ranking, 'ranking-aggregate')} onSelect={(name, heat) => setState({ ...state, screen: '', rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
+        {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} roles={rankingRoles} background={getImage(ranking, 'ranking-aggregate')} onSelect={(role) => setState({ ...state, screen: '', rankingOpen: true, rankingName: role.name, rankingHeat: role.heat, rankingImage: role.image, rankingTaskBackground: role.taskBackground })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
         {state.screen === 'checkin' ? <CheckinScreen onClose={() => setState({ ...state, screen: '' })} content={getContent(modules.find((item) => item.kind === 'hero'))!} language={language} /> : null}
         {modules.map((module) => (
           <div
@@ -1251,7 +1282,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
           </div>
         ))}
       </div>
-      {state.rankingOpen && <RankingSheet onClose={() => setState({ ...state, rankingOpen: false })} name={state.rankingName} heat={state.rankingHeat} tasks={getContent(ranking)?.config.tasks} language={language} highlightTasks={focus?.moduleId === ranking?.id && focus?.field === 'tasks'} />}
+      {state.rankingOpen && <RankingSheet onClose={() => setState({ ...state, rankingOpen: false })} name={state.rankingName} heat={state.rankingHeat} roleImage={state.rankingImage} background={state.rankingTaskBackground} tasks={getContent(ranking)?.config.tasks} language={language} highlightTasks={focus?.moduleId === ranking?.id && focus?.field === 'tasks'} />}
     </div>
   )
 }
@@ -1296,7 +1327,7 @@ function PhoneModule({ module, content, language, state, setState, flash, focusF
       return <div className="poll-box"><p className={fieldClass('question')} style={fieldStyle('question', '#2b2624')}>{content.config.question}</p><div className={`poll-options ${options.length > 2 ? 'stacked' : ''}`}>{options.map((option, index) => <button style={!state.voted ? fieldStyle('pollOptions', '#934741') : undefined} className={`${option.image ? 'with-image' : ''} ${state.voted && state.vote === String(index) ? 'voted' : ''} ${fieldClass('pollOptions')}`} key={`${option.label}-${index}`} onClick={(e) => { e.stopPropagation(); setState({ ...state, voted: true, vote: String(index) }) }}>{option.image && <i style={{ '--option-image': `url("${option.image}")` } as React.CSSProperties} />}<span>{option.label}</span>{state.voted && <b>{percent}</b>}</button>)}</div><small className={state.voted ? 'poll-result' : fieldClass('helper')} style={state.voted ? undefined : fieldStyle('helper', '#a58a80')}>{state.voted ? voteResult : content.config.helper}</small></div>
     }
     case 'ranking':
-      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, noteOne], i) => <button key={`${name}-${i}`} className={fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} onClick={(e) => { e.stopPropagation(); setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: calculatedHeat(i, language) }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{noteOne}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
+      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, noteOne], i) => <button key={`${name}-${i}`} className={fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} onClick={(e) => { e.stopPropagation(); setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: calculatedHeat(i, language), rankingImage: content.images?.[`rank-${i + 1}`] ?? '', rankingTaskBackground: content.images?.[`rank-task-${i + 1}`] ?? '' }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{noteOne}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
     case 'banner':
       return <button className={`${fieldClass('ctaLink', 'blue-banner')}`} style={assetStyle('banner')} aria-label={isChinese ? '打开 Banner 跳转链接' : 'Open banner link'} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }} />
     case 'topic':
@@ -1317,12 +1348,12 @@ function CheckinScreen({ onClose, content, language }: { onClose: () => void; co
   return <div className="h5-overlay checkin-screen"><header><button onClick={onClose} aria-label={isChinese ? '关闭签到日历' : 'Close check-in calendar'}><ChevronLeft size={23} /></button><b>{content.config.checkinTitle}</b><span /></header><div className="checkin-calendar"><p>{content.config.checkinHint}</p><div className="calendar-month">2026 年 8 月</div><div className="calendar-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div className="calendar-grid">{Array.from({ length: 21 }, (_, index) => { const day = String(index + 1).padStart(2, '0'); const poster = posters.find((item) => item.date === day); return <div className={`calendar-day ${poster ? 'has-poster' : ''} ${checked && poster ? 'unlocked' : ''}`} key={day}>{poster ? <><span>{day}</span><i style={{ '--calendar-poster': `url("${poster.image}")` } as React.CSSProperties} /></> : <span>{day}</span>}</div> })}</div><button className={`checkin-confirm ${checked ? 'done' : ''}`} onClick={() => setChecked(true)}>{checked ? (isChinese ? '已签到' : 'Checked in') : (content.config.cta || (isChinese ? '签到' : 'Check in'))}</button></div></div>
 }
 
-function RankingBoard({ title, onClose, roles, background, onSelect, cta }: { title: string; onClose: () => void; roles: Array<{ name: string; noteOne: string; noteTwo: string; image: string; heat: string }>; background: string; onSelect: (name: string, heat?: string) => void; cta: string }) {
+function RankingBoard({ title, onClose, roles, background, onSelect, cta }: { title: string; onClose: () => void; roles: Array<{ name: string; noteOne: string; noteTwo: string; image: string; taskBackground: string; heat: string }>; background: string; onSelect: (role: { name: string; image: string; taskBackground: string; heat: string }) => void; cta: string }) {
   const podium = roles.slice(0, 3)
-  return <div className="h5-overlay ranking-board"><header><button onClick={onClose} aria-label="关闭完整榜单"><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="ranking-board-hero" style={{ '--ranking-board-background': background ? `url("${background}")` : 'none' } as React.CSSProperties}><strong>{title}</strong><span>实时更新</span></div><div className="ranking-podium">{podium.map((role, index) => <button key={`${role.name}-${index}`} onClick={() => onSelect(role.name, role.heat)}><i style={{ '--podium-image': `url("${role.image}")` } as React.CSSProperties} /><em>{index + 1}</em><b>{role.name}</b><small>{role.noteOne}</small><small>{role.noteTwo}</small><span>{role.heat}</span><strong>{cta}</strong></button>)}</div><div className="ranking-list">{roles.slice(3).map((role, index) => <button key={`${role.name}-${index + 3}`} onClick={() => onSelect(role.name, role.heat)}><i style={{ '--podium-image': `url("${role.image}")` } as React.CSSProperties} /><b>{index + 4}</b><div><strong>{role.name}</strong><small>{role.noteOne}</small><small>{role.noteTwo}</small></div><em>{role.heat}</em><span>{cta}</span></button>)}</div></div>
+  return <div className="h5-overlay ranking-board"><header><button onClick={onClose} aria-label="关闭完整榜单"><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="ranking-board-hero" style={{ '--ranking-board-background': background ? `url("${background}")` : 'none' } as React.CSSProperties}><strong>{title}</strong><span>实时更新</span></div><div className="ranking-podium">{podium.map((role, index) => <button key={`${role.name}-${index}`} onClick={() => onSelect(role)}><i style={{ '--podium-image': `url("${role.image}")` } as React.CSSProperties} /><em>{index + 1}</em><b>{role.name}</b><small>{role.noteOne}</small><small>{role.noteTwo}</small><span>{role.heat}</span><strong>{cta}</strong></button>)}</div><div className="ranking-list">{roles.slice(3).map((role, index) => <button key={`${role.name}-${index + 3}`} onClick={() => onSelect(role)}><i style={{ '--podium-image': `url("${role.image}")` } as React.CSSProperties} /><b>{index + 4}</b><div><strong>{role.name}</strong><small>{role.noteOne}</small><small>{role.noteTwo}</small></div><em>{role.heat}</em><span>{cta}</span></button>)}</div></div>
 }
 
-function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: { onClose: () => void; name: string; heat: string; tasks: string | undefined; language: Language; highlightTasks: boolean }) {
+function RankingSheet({ onClose, name, heat, roleImage, background, tasks, language, highlightTasks }: { onClose: () => void; name: string; heat: string; roleImage: string; background: string; tasks: string | undefined; language: Language; highlightTasks: boolean }) {
   const [checkedIn, setCheckedIn] = useState(false)
   const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
   const taskEntries = (tasks?.split('\n').filter(Boolean) ?? []).map((item, index) => {
@@ -1332,7 +1363,7 @@ function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: 
   const copy = isChinese
     ? { close: '关闭榜单任务', support: '助力', character: '角色', current: '当前角色热力值', total: '个人累计贡献', rank: '个人贡献排名', heading: '完成任务，为他增加热力值', checkIn: '签到', checkedIn: '已签到', complete: '去完成' }
     : { close: 'Close ranking tasks', support: 'Support', character: 'character', current: 'Current popularity', total: 'Your total contribution', rank: 'Your contribution rank', heading: 'Complete tasks to add popularity', checkIn: 'Check in', checkedIn: 'Checked in', complete: 'Complete' }
-  return <div className="phone-sheet"><div className="sheet-scrim" onClick={onClose} /><div className="sheet-content"><button className="sheet-close" onClick={onClose} aria-label={copy.close}><X size={18} /></button><div className="sheet-profile"><div className="small-rank-face" /><div><b>{copy.support} {name || copy.character}</b><span>{copy.current} {heat || '0'}</span></div></div><div className="contribution"><div><span>{copy.total}</span><b>180</b></div><div><span>{copy.rank}</span><b>NO. 125</b></div></div><h3>{copy.heading}</h3>{taskEntries.map(([id, task, reward, link], i) => <div className={`task-row ${highlightTasks ? 'preview-field-highlight' : ''}`} key={`${id}-${i}`}><span className={`task-icon ti${(i % 4) + 1}`}>{i + 1}</span><b>{task}</b><em>{reward || '+0'}</em><button className={`task-action ${id === 'task-1' && checkedIn ? 'done' : ''}`} onClick={() => { if (id === 'task-1') { setCheckedIn(true); return } if (link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer') }} disabled={id === 'task-1' && checkedIn}>{id === 'task-1' ? (checkedIn ? copy.checkedIn : copy.checkIn) : copy.complete}</button></div>)}</div></div>
+  return <div className="phone-sheet"><div className="sheet-scrim" onClick={onClose} /><div className="sheet-content task-sheet-content" style={{ '--task-sheet-background': background ? `url("${background}")` : 'none', '--task-role-image': roleImage ? `url("${roleImage}")` : 'none' } as React.CSSProperties}><button className="sheet-close" onClick={onClose} aria-label={copy.close}><X size={18} /></button><div className="sheet-profile"><div className="small-rank-face" /><div><b>{copy.support} {name || copy.character}</b><span>{copy.current} {heat || '0'}</span></div></div><div className="task-sheet-card"><div className="contribution"><div><span>{copy.total}</span><b>180</b></div><div><span>{copy.rank}</span><b>NO. 125</b></div></div><h3>{copy.heading}</h3>{taskEntries.map(([id, task, reward, link], i) => <div className={`task-row ${highlightTasks ? 'preview-field-highlight' : ''}`} key={`${id}-${i}`}><span className={`task-icon ti${(i % 4) + 1}`}>{i + 1}</span><b>{task}</b><em>{reward || '+0'}</em><button className={`task-action ${id === 'task-1' && checkedIn ? 'done' : ''}`} onClick={() => { if (id === 'task-1') { setCheckedIn(true); return } if (link?.trim()) window.open(link.trim(), '_blank', 'noopener,noreferrer') }} disabled={id === 'task-1' && checkedIn}>{id === 'task-1' ? (checkedIn ? copy.checkedIn : copy.checkIn) : copy.complete}</button></div>)}</div></div></div>
 }
 
 function OverlayScreen({ title, list, onClose, images, links = [], background = '' }: { title: string; list: string[]; onClose: () => void; images: string[]; links?: string[]; background?: string }) {

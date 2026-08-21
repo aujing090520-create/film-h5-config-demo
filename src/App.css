@@ -234,3 +234,15 @@
 .sheet-content .task-action { flex: 0 0 auto; min-width: 58px; height: 26px; padding: 0 9px; color: #fff; border: 0; border-radius: 14px; background: #ff315f; font-size: 11px; font-weight: 800; line-height: 26px; }
 .sheet-content .task-action:hover { background: #e92a55; }
 .sheet-content .task-action.done, .sheet-content .task-action:disabled { color: #bf9a9f; background: #ffe1e7; cursor: default; }
+
+/* A task sheet has its own per-role hero image while the task card remains readable. */
+.ranking-role-item { grid-template-columns: 22px minmax(72px, .7fr) minmax(136px, 1.1fr) minmax(136px, 1.1fr) minmax(72px, .7fr) minmax(72px, .7fr) 28px; }
+.task-sheet-content { padding: 15px 15px 18px; color: #fff; background-color: #81513c; background-image: linear-gradient(90deg, rgba(74,39,26,.86), rgba(74,39,26,.32)), var(--task-sheet-background, none); background-position: center; background-size: cover; }
+.task-sheet-content .sheet-close { color: #fff; }
+.task-sheet-content .small-rank-face { border: 2px solid rgba(255,255,255,.74); background: var(--task-role-image, none) center / cover, #fff2e9; }
+.task-sheet-content .sheet-profile b { color: #fff; }
+.task-sheet-content .sheet-profile span { color: rgba(255,255,255,.82); }
+.task-sheet-card { margin-top: 14px; padding: 1px 13px 3px; color: #2b2624; border-radius: 16px; background: #fff; }
+.task-sheet-card .contribution { margin: 12px 0; }
+.task-sheet-card h3 { margin: 12px 0 4px; }
+.task-sheet-card .task-row { background: transparent; }
