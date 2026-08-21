@@ -148,6 +148,12 @@ type ModuleDefinition = Pick<PageModule, 'label' | 'fr' | 'displayIndex'> & {
 
 const defaultContentStyle: ContentStyle = { backgroundColor: '#fffdf9', textColors: {}, fontSizes: {} }
 
+const calculatedHeat = (index: number, language: Language) => {
+  const value = Math.max(57000, 248000 - index * 18500)
+  const isChinese = language === 'Chinese' || language === 'Chinese_yy' || language === 'Cantonese'
+  return isChinese ? `${(value / 10000).toFixed(1)}万` : `${Math.round(value / 1000)}K`
+}
+
 const createInfoTags = (prefix: string, tags: Array<[string, number, number, string, number]>): InfoTag[] => tags.map(([text, row, position, color, fontSize], index) => ({ id: `${prefix}-${index + 1}`, text, row, position, color, fontSize }))
 type LegacyInfoValues = { score?: string; rankingText?: string; viewCount?: string; schedule?: string; helper?: string }
 const defaultInfoTags = (language: Language, legacy: LegacyInfoValues = {}) => {
@@ -191,7 +197,7 @@ const moduleDefinitions: Record<ModuleKind, ModuleDefinition> = {
   cast: { label: '演员区', fr: 'FR-03', displayIndex: '02', content: { title: '演员区', subtitle: '', background: '', config: { items: '洛瑶｜饰 宁安\n沈砚舟｜饰 李承槐\n许清晏｜饰 谢长宁\n温言｜饰 南宫月' } }, english: { title: 'Cast', subtitle: '', background: '', config: { items: 'Luo Yao｜as Ning An\nShen Yanzhou｜as Li Chenghuai\nXu Qingyan｜as Xie Changning\nWen Yan｜as Nangong Yue' } } },
   clips: { label: '剧情切片工厂', fr: 'FR-04', displayIndex: '03', content: { title: '剧情切片工厂', subtitle: '', background: '', config: { items: '雨夜执伞\n花笺密令\n初见如故', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } }, english: { title: 'Scene clips', subtitle: '', background: '', config: { items: 'An umbrella in the rain\nThe secret letter\nLove at first sight', links: 'https://www.hellotalk.com/moments/985112\nhttps://www.hellotalk.com/moments/985113\nhttps://www.hellotalk.com/moments/985114' } } },
   poll: { label: '阵营选择', fr: 'FR-05', displayIndex: '04', content: { title: '阵营选择', subtitle: '', background: '', config: { question: '你更期待谁先揭开花笺密令？', pollOptions: [{ label: '沈砚舟', image: '/film-assets/rank-2.png' }, { label: '洛瑶', image: '/film-assets/rank-1.png' }], helper: '截止 2026/09/20 · 12.8 万人参与' } }, english: { title: 'Choose a side', subtitle: '', background: '', config: { question: 'Who do you want to uncover the secret letter first?', pollOptions: [{ label: 'Shen Yanzhou', image: '/film-assets/rank-2.png' }, { label: 'Luo Yao', image: '/film-assets/rank-1.png' }], helper: 'Ends Sep 20, 2026 · 128K joined' } } },
-  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜11.1万\n沈砚舟｜24.8万\n许清晏｜11.0万', tasks: '每日签到｜+20\n带 #沈砚舟# 发帖｜+50\n去演员圈讨论｜+30\n去剧圈讨论｜+30', aggregateTitle: '完整人气榜', moreLabel: '查看完整榜单' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜111K\nShen Yanzhou｜248K\nXu Qingyan｜110K', tasks: 'Daily check-in｜+20\nPost with #ShenYanzhou#｜+50\nDiscuss in the cast circle｜+30\nDiscuss in the series circle｜+30', aggregateTitle: 'Full popularity ranking', moreLabel: 'View full ranking' } } },
+  ranking: { label: '排行榜', fr: 'FR-06', displayIndex: '05', content: { title: '人气榜', subtitle: '实时 08.20', background: '', config: { items: '洛瑶｜饰 宁安｜长安花笺\n沈砚舟｜饰 李承槐｜长安花笺\n许清晏｜饰 谢长宁｜长安花笺', tasks: '每日签到｜+20\n带 #沈砚舟# 发帖｜+50\n去演员圈讨论｜+30\n去剧圈讨论｜+30', aggregateTitle: '完整人气榜', moreLabel: '查看完整榜单' } }, english: { title: 'Popularity ranking', subtitle: 'Live · Aug 20', background: '', config: { items: 'Luo Yao｜as Ning An｜Letters of Chang’an\nShen Yanzhou｜as Li Chenghuai｜Letters of Chang’an\nXu Qingyan｜as Xie Changning｜Letters of Chang’an', tasks: 'Daily check-in｜+20\nPost with #ShenYanzhou#｜+50\nDiscuss in the cast circle｜+30\nDiscuss in the series circle｜+30', aggregateTitle: 'Full popularity ranking', moreLabel: 'View full ranking' } } },
   banner: { label: 'Banner 广告跳转区', fr: 'FR-10', displayIndex: '', content: { title: '', subtitle: '', background: '', config: {} }, english: { title: '', subtitle: '', background: '', config: {} } },
   topic: { label: '话题区发帖（已有）', fr: 'FR-11', displayIndex: '', content: { title: '热门话题', subtitle: '', background: '', config: { items: '#长安花笺#｜此刻正在讨论这场雨夜初见\n#沈砚舟#｜和剧友聊聊你的角色选择\n#花笺密令#｜和剧友聊聊你的角色选择' } }, english: { title: 'Trending topics', subtitle: '', background: '', config: { items: '#LettersOfChangan#｜Talk about their first meeting in the rain\n#ShenYanzhou#｜Share your character choice with fans\n#SecretLetter#｜Talk with fans about the series' } } },
   posts: { label: '最佳帖文（已有）', fr: 'FR-12', displayIndex: '', content: { title: '最佳帖文', subtitle: '', background: '', config: { items: '花灯下的心动瞬间\n花灯亮起的那一刻，突然理解了他们的选择。' } }, english: { title: 'Best posts', subtitle: '', background: '', config: { items: 'A heartbeat under lanterns\nWhen the lanterns lit up, I finally understood their choice.' } } },
@@ -986,6 +992,39 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     </section>
   )
 
+  const rankingRoleRows = () => (
+    <section className="localized-field">
+      {styledFieldLabel('排行榜角色', 'items', true, '#fff')}
+      {languages.map((language) => {
+        const content = selected.content[language]
+        const roles = String(content.config.items ?? '').split('\n').filter(Boolean).map((item, index) => {
+          const [name = '', noteOne = '', noteTwo = ''] = item.split('｜')
+          return { name, noteOne, noteTwo, image: content.images?.[`rank-${index + 1}`] ?? '' }
+        })
+        const updateRoles = (nextRoles: typeof roles) => {
+          const nonRankingImages = Object.fromEntries(Object.entries(content.images ?? {}).filter(([key]) => !key.startsWith('rank-')))
+          updateContent(language, {
+            images: { ...nonRankingImages, ...Object.fromEntries(nextRoles.map((role, index) => [`rank-${index + 1}`, role.image])) },
+            config: { ...content.config, items: nextRoles.map((role) => [role.name, role.noteOne, role.noteTwo].join('｜')).join('\n') },
+          })
+        }
+        return <div className="ranking-role-editor" key={`${language}-ranking-roles`}>
+          <div className="structured-head"><b>{languageLabels[language]}</b><span>热力值由前端算法实时计算</span></div>
+          {roles.map((role, index) => <div className="ranking-role-item" key={`${language}-rank-${index}`}>
+            <span>{index + 1}</span>
+            <label>角色名<input value={role.name} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></label>
+            <label>角色图<div className="clip-image-input"><input value={role.image} onFocus={() => onFocusPreviewField(language, `image:rank-${index + 1}`)} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, image: event.target.value } : item))} placeholder="图片链接" /><button className="secondary" title="上传角色图"><Upload size={14} /></button></div></label>
+            <label>备注一<input value={role.noteOne} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, noteOne: event.target.value } : item))} /></label>
+            <label>备注二<input value={role.noteTwo} onFocus={() => onFocusPreviewField(language, 'items')} onChange={(event) => updateRoles(roles.map((item, itemIndex) => itemIndex === index ? { ...item, noteTwo: event.target.value } : item))} /></label>
+            <button className="row-remove" onClick={() => updateRoles(roles.filter((_, itemIndex) => itemIndex !== index))} title="删除角色"><X size={15} /></button>
+          </div>)}
+          <button className="secondary add-option" onClick={() => updateRoles([...roles, { name: '', noteOne: '', noteTwo: '', image: '' }])}><Plus size={15} /> 添加角色</button>
+        </div>
+      })}
+      {localizedActions('ranking-roles')}
+    </section>
+  )
+
   const checkinPosterRows = () => (
     <section className="localized-field">
       <div className="localized-field-label">签到海报日历</div>
@@ -1023,7 +1062,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       {selected.kind === 'cast' && structuredRows('演员列表', 'items', ['演员名', '角色名'])}
       {selected.kind === 'clips' && clipResourceRows()}
       {selected.kind === 'poll' && <>{textRows('投票题目', 'question', false, true)}{pollOptionRows()}{textRows('投票说明', 'helper')}</>}
-      {selected.kind === 'ranking' && <>{structuredRows('排行榜角色', 'items', ['角色名', '热力值'])}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
+      {selected.kind === 'ranking' && <>{rankingRoleRows()}{structuredRows('助力任务列表', 'tasks', ['任务文案', '热力奖励', '跳转链接'])}{textRows('助力按钮文案', 'cta')}{textRows('完整榜单入口文案', 'moreLabel')}{textRows('完整榜单页标题', 'aggregateTitle')}{aggregateImageRows('ranking')}</>}
       {selected.kind === 'banner' && linkRows('跳转链接', 'ctaLink')}
       {selected.kind === 'topic' && <>{structuredRows('话题列表', 'items', ['话题', '话题说明'])}{textRows('主操作文案', 'cta')}{linkRows('主操作跳转链接', 'ctaLink')}{textRows('次操作文案', 'secondaryCta')}{linkRows('次操作跳转链接', 'secondaryCtaLink')}</>}
       {selected.kind === 'posts' && textRows('展示帖文', 'items', true)}
@@ -1128,6 +1167,10 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
   const castList = splitLines(getContent(cast)?.config.items).map((item) => item.replaceAll('｜', ' · '))
   const clipList = splitLines(getContent(clips)?.config.items)
   const clipLinks = splitLines(getContent(clips)?.config.links)
+  const rankingRoles = splitLines(getContent(ranking)?.config.items).map((item, index) => {
+    const [name = '', noteOne = '', noteTwo = ''] = item.split('｜')
+    return { name, noteOne, noteTwo, image: getImage(ranking, `rank-${index + 1}`), heat: calculatedHeat(index, language) }
+  })
 
   useEffect(() => {
     const target = moduleRefs.current[selectedId]
@@ -1159,7 +1202,7 @@ function PhonePreview({ modules, language, selectedId, onSelectModule, review, s
       <div className="h5-scroll" ref={scrollRef}>
         {state.screen === 'cast' ? <OverlayScreen title={isChinese ? '全部演员' : 'All cast'} onClose={() => setState({ ...state, screen: '' })} list={castList} images={castList.map((_, index) => getImage(cast, `cast-${(index % imageSlots.cast.length) + 1}`))} /> : null}
         {state.screen === 'clips' ? <ClipLibraryScreen title={getContent(clips)?.title || ''} onClose={() => setState({ ...state, screen: '' })} clips={clipList.map((name, index) => ({ name, image: getImage(clips, `clip-${index + 1}`), link: clipLinks[index]?.trim() ?? '' }))} /> : null}
-        {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} entries={splitLines(getContent(ranking)?.config.items).map((item) => item.split('｜'))} images={imageSlots.ranking.map((slot) => getImage(ranking, slot.key))} background={getImage(ranking, 'ranking-aggregate')} onSelect={(name, heat) => setState({ ...state, screen: '', rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
+        {state.screen === 'ranking' ? <RankingBoard title={getContent(ranking)?.config.aggregateTitle || getContent(ranking)?.title || ''} onClose={() => setState({ ...state, screen: '' })} roles={rankingRoles} background={getImage(ranking, 'ranking-aggregate')} onSelect={(name, heat) => setState({ ...state, screen: '', rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' })} cta={getContent(ranking)?.config.cta ?? ''} /> : null}
         {state.screen === 'checkin' ? <CheckinScreen onClose={() => setState({ ...state, screen: '' })} content={getContent(modules.find((item) => item.kind === 'hero'))!} language={language} /> : null}
         {modules.map((module) => (
           <div
@@ -1221,7 +1264,7 @@ function PhoneModule({ module, content, language, state, setState, flash, focusF
       return <div className="poll-box"><p className={fieldClass('question')} style={fieldStyle('question', '#2b2624')}>{content.config.question}</p><div className={`poll-options ${options.length > 2 ? 'stacked' : ''}`}>{options.map((option, index) => <button style={!state.voted ? fieldStyle('pollOptions', '#934741') : undefined} className={`${option.image ? 'with-image' : ''} ${state.voted && state.vote === String(index) ? 'voted' : ''} ${fieldClass('pollOptions')}`} key={`${option.label}-${index}`} onClick={(e) => { e.stopPropagation(); setState({ ...state, voted: true, vote: String(index) }) }}>{option.image && <i style={{ '--option-image': `url("${option.image}")` } as React.CSSProperties} />}<span>{option.label}</span>{state.voted && <b>{percent}</b>}</button>)}</div><small className={state.voted ? 'poll-result' : fieldClass('helper')} style={state.voted ? undefined : fieldStyle('helper', '#a58a80')}>{state.voted ? voteResult : content.config.helper}</small></div>
     }
     case 'ranking':
-      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, heat], i) => <button key={`${name}-${i}`} className={fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} onClick={(e) => { e.stopPropagation(); setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: heat ?? '' }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{heat}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
+      return <div className="rank-row">{rankingEntries.slice(0, 3).map(([name, noteOne], i) => <button key={`${name}-${i}`} className={fieldClass(`image:rank-${i + 1}`, `rank-card rank-${i + 1}`)} onClick={(e) => { e.stopPropagation(); setState({ ...state, rankingOpen: true, rankingName: name, rankingHeat: calculatedHeat(i, language) }) }}><span className="crown">{i + 1}</span><div className="rank-portrait" style={assetStyle(`rank-${i + 1}`)} /><b className={fieldClass('structured:items:0')} style={fieldStyle('structured:items:0', '#fff')}>{name}</b><small className={fieldClass('structured:items:1')} style={fieldStyle('structured:items:1', '#ffdcba')}>{noteOne}</small><em className={fieldClass('cta')} style={fieldStyle('cta', '#fff')}>{content.config.cta}</em></button>)}</div>
     case 'banner':
       return <button className={`${fieldClass('ctaLink', 'blue-banner')}`} style={assetStyle('banner')} aria-label={isChinese ? '打开 Banner 跳转链接' : 'Open banner link'} onClick={(e) => { e.stopPropagation(); openConfiguredLink(content.config.ctaLink, isChinese ? '请先配置跳转链接' : 'Add a destination link first') }} />
     case 'topic':
@@ -1242,9 +1285,9 @@ function CheckinScreen({ onClose, content, language }: { onClose: () => void; co
   return <div className="h5-overlay checkin-screen"><header><button onClick={onClose} aria-label={isChinese ? '关闭签到日历' : 'Close check-in calendar'}><ChevronLeft size={23} /></button><b>{content.config.checkinTitle}</b><span /></header><div className="checkin-calendar"><p>{content.config.checkinHint}</p><div className="calendar-month">2026 年 8 月</div><div className="calendar-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div className="calendar-grid">{Array.from({ length: 21 }, (_, index) => { const day = String(index + 1).padStart(2, '0'); const poster = posters.find((item) => item.date === day); return <div className={`calendar-day ${poster ? 'has-poster' : ''} ${checked && poster ? 'unlocked' : ''}`} key={day}>{poster ? <><span>{day}</span><i style={{ '--calendar-poster': `url("${poster.image}")` } as React.CSSProperties} /></> : <span>{day}</span>}</div> })}</div><button className={`checkin-confirm ${checked ? 'done' : ''}`} onClick={() => setChecked(true)}>{checked ? (isChinese ? '已签到' : 'Checked in') : (content.config.cta || (isChinese ? '签到' : 'Check in'))}</button></div></div>
 }
 
-function RankingBoard({ title, onClose, entries, images, background, onSelect, cta }: { title: string; onClose: () => void; entries: string[][]; images: string[]; background: string; onSelect: (name: string, heat?: string) => void; cta: string }) {
-  const podium = entries.slice(0, 3)
-  return <div className="h5-overlay ranking-board"><header><button onClick={onClose} aria-label="关闭完整榜单"><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="ranking-board-hero" style={{ '--ranking-board-background': background ? `url("${background}")` : 'none' } as React.CSSProperties}><strong>{title}</strong><span>实时更新</span></div><div className="ranking-tabs"><b>剧集</b><span>电影</span></div><div className="ranking-podium">{podium.map(([name, heat], index) => <button key={`${name}-${index}`} onClick={() => onSelect(name, heat)}><i style={{ '--podium-image': `url("${images[index] ?? ''}")` } as React.CSSProperties} /><em>{index + 1}</em><b>{name}</b><small>{heat}</small><span>{cta}</span></button>)}</div><div className="ranking-list">{entries.slice(3).map(([name, heat], index) => <button key={`${name}-${index + 3}`} onClick={() => onSelect(name, heat)}><i style={{ '--podium-image': `url("${images[(index + 3) % images.length] ?? ''}")` } as React.CSSProperties} /><b>{index + 4}</b><span>{name}</span><em>{heat}</em><strong>{cta}</strong></button>)}</div></div>
+function RankingBoard({ title, onClose, roles, background, onSelect, cta }: { title: string; onClose: () => void; roles: Array<{ name: string; noteOne: string; noteTwo: string; image: string; heat: string }>; background: string; onSelect: (name: string, heat?: string) => void; cta: string }) {
+  const podium = roles.slice(0, 3)
+  return <div className="h5-overlay ranking-board"><header><button onClick={onClose} aria-label="关闭完整榜单"><ChevronLeft size={23} /></button><b>{title}</b><span /></header><div className="ranking-board-hero" style={{ '--ranking-board-background': background ? `url("${background}")` : 'none' } as React.CSSProperties}><strong>{title}</strong><span>实时更新</span></div><div className="ranking-podium">{podium.map((role, index) => <button key={`${role.name}-${index}`} onClick={() => onSelect(role.name, role.heat)}><i style={{ '--podium-image': `url("${role.image}")` } as React.CSSProperties} /><em>{index + 1}</em><b>{role.name}</b><small>{role.noteOne}</small><small>{role.noteTwo}</small><span>{role.heat}</span><strong>{cta}</strong></button>)}</div><div className="ranking-list">{roles.slice(3).map((role, index) => <button key={`${role.name}-${index + 3}`} onClick={() => onSelect(role.name, role.heat)}><i style={{ '--podium-image': `url("${role.image}")` } as React.CSSProperties} /><b>{index + 4}</b><div><strong>{role.name}</strong><small>{role.noteOne}</small><small>{role.noteTwo}</small></div><em>{role.heat}</em><span>{cta}</span></button>)}</div></div>
 }
 
 function RankingSheet({ onClose, name, heat, tasks, language, highlightTasks }: { onClose: () => void; name: string; heat: string; tasks: string | undefined; language: Language; highlightTasks: boolean }) {
