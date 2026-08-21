@@ -18,7 +18,6 @@ import {
   QrCode,
   Search,
   Settings2,
-  Sparkles,
   Trash2,
   Upload,
   X,
@@ -299,7 +298,6 @@ function App() {
   const [showLibrary, setShowLibrary] = useState(false)
   const [showLanguageDialog, setShowLanguageDialog] = useState(false)
   const [pendingLanguages, setPendingLanguages] = useState<Language[]>(['Chinese'])
-  const [autoTranslate, setAutoTranslate] = useState(true)
   const [toast, setToast] = useState('')
   const [review, setReview] = useState(false)
   const generatedModuleId = useRef(0)
@@ -463,44 +461,14 @@ function App() {
           background: '',
           images: item.kind === 'cast' ? { ...(content.Chinese?.images ?? source.images) } : {},
           style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
-          config: {
-            ...source.config,
-            ...(autoTranslate ? {} : { name: '', intro: '', question: '', cta: '', items: '', tasks: '', metadata: '', infoTags: [], schedule: '', helper: '', body: '', status: '', pollOptions: [], moreLabel: '', moreLink: '', secondaryCta: '', secondaryCtaLink: '', ctaLink: '', links: '' }),
-          },
+          config: { ...source.config },
         }
       })
       return { ...item, content }
     }))
     if (!normalized.includes(previewLanguage)) setPreviewLanguage(normalized[0])
     setShowLanguageDialog(false)
-    flash(autoTranslate ? '已添加内容语言并生成翻译初稿' : '已添加内容语言')
-  }
-
-  const generateAiLanguages = () => {
-    const aiLanguages: Language[] = ['Chinese', 'English', 'Chinese_yy', 'Vietnamese', 'Japanese']
-    setContentLanguages(aiLanguages)
-    setModules((items) => items.map((item) => {
-      const content = { ...item.content }
-      aiLanguages.forEach((language) => {
-        if (content[language]) return
-        const source = content.English ?? content.Chinese
-        content[language] = {
-          ...source,
-          background: '',
-          images: item.kind === 'cast' ? { ...(content.Chinese?.images ?? source.images) } : {},
-          style: { ...defaultContentStyle, textColors: {}, fontSizes: {} },
-          config: {
-            ...source.config,
-            infoTags: source.config.infoTags?.map((tag, index) => ({ ...tag, id: `${language}-ai-tag-${index + 1}` })),
-            pollOptions: source.config.pollOptions?.map((option) => ({ ...option })),
-            checkinPosters: source.config.checkinPosters?.map((poster) => ({ ...poster })),
-          },
-        }
-      })
-      return { ...item, content }
-    }))
-    setPreviewLanguage('Chinese')
-    flash('AI 已生成 English、Chinese_yy、Vietnamese、Japanese 初稿')
+    flash('已添加内容语言')
   }
 
   if (view === 'list') {
@@ -613,7 +581,6 @@ function App() {
                   setPendingLanguages(contentLanguages)
                   setShowLanguageDialog(true)
                 }}
-                onGenerateAi={generateAiLanguages}
               />
             </section>
 
@@ -656,9 +623,7 @@ function App() {
       {showLanguageDialog && (
         <LanguageDialog
           selected={pendingLanguages}
-          autoTranslate={autoTranslate}
           onToggle={(language) => setPendingLanguages((items) => (items.includes(language) ? items.filter((item) => item !== language) : [...items, language]))}
-          onToggleAuto={() => setAutoTranslate(!autoTranslate)}
           onClose={() => setShowLanguageDialog(false)}
           onConfirm={saveLanguages}
         />
@@ -754,7 +719,7 @@ function AdvancedSettings({ flash }: { flash: (value: string) => void }) {
   )
 }
 
-function ModuleForm({ selected, languages, updateModule, updateContent, replaceContent, updateConfig, onFocusPreviewField, flash, onAddLanguage, onGenerateAi }: {
+function ModuleForm({ selected, languages, updateModule, updateContent, replaceContent, updateConfig, onFocusPreviewField, flash, onAddLanguage }: {
   selected: PageModule
   languages: Language[]
   updateModule: (patch: Partial<Omit<PageModule, 'content'>>) => void
@@ -764,11 +729,11 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
   onFocusPreviewField: (language: Language, field: PreviewFocus['field']) => void
   flash: (value: string) => void
   onAddLanguage: () => void
-  onGenerateAi: () => void
 }) {
   const hasDisplayImage = selected.kind !== 'clips' && imageSlots[selected.kind].length > 0
   const infoTagCounter = useRef(0)
   const [openClipboardMenu, setOpenClipboardMenu] = useState<string | null>(null)
+  const sourceLanguage = languages.includes('English') ? 'English' : 'Chinese'
   const usesExistingConfig = ['topic', 'posts', 'voice', 'live'].includes(selected.kind)
   if (usesExistingConfig) {
     return (
@@ -793,6 +758,11 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     if (value === '') delete fontSizes[field]
     else fontSizes[field] = Math.min(48, Math.max(8, Number(value)))
     updateContent(language, { style: { ...currentStyle, textColors: { ...currentStyle.textColors }, fontSizes } })
+  }
+  const retranslate = (language: Language, label: string, source: string, apply: (value: string) => void) => {
+    apply(source)
+    onFocusPreviewField(language, label as PreviewFocus['field'])
+    flash(`已使用 AI 重译${languageLabels[language]}${label}`)
   }
   const colorControl = (language: Language, field: StyleField, fallback?: string) => (
     <label className="field-color" title="文字颜色">
@@ -865,11 +835,12 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
   )
 
   const titleRow = (language: Language) => (
-    <div className="localized-row" key={`${language}-title`}>
+    <div className={`localized-row ${language !== sourceLanguage ? 'with-retranslate' : ''}`} key={`${language}-title`}>
       <select value={language} disabled><option>{languageLabels[language]}</option></select>
       <input value={selected.content[language].title} onFocus={() => onFocusPreviewField(language, 'title')} onChange={(event) => updateContent(language, { title: event.target.value })} placeholder={`${languageLabels[language]} 标题`} />
       {colorControl(language, 'title', selected.titleColor)}
       {fontSizeControl(language, 'title')}
+      {language !== sourceLanguage && <button className="retranslate-button" onClick={() => retranslate(language, 'title', selected.content[sourceLanguage].title, (value) => updateContent(language, { title: value }))}>重译</button>}
       {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { title: '' })} title="清空该语言标题"><X size={15} /></button>}
     </div>
   )
@@ -878,13 +849,14 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
     <section className="localized-field">
       <div className="localized-field-label">{required && <span className="required-mark">*</span>}{label}</div>
       {languages.map((language) => (
-        <div className="localized-row" key={`${language}-${key}`}>
+        <div className={`localized-row ${language !== sourceLanguage ? 'with-retranslate' : ''}`} key={`${language}-${key}`}>
           <select value={language} disabled><option>{languageLabels[language]}</option></select>
           {multiline
             ? <textarea value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder={`${languageLabels[language]} ${label}`} />
           : <input value={selected.content[language].config[key] ?? ''} onFocus={() => onFocusPreviewField(language, key)} onChange={(event) => updateConfig(language, key, event.target.value)} placeholder={`${languageLabels[language]} ${label}`} />}
           {colorControl(language, key)}
           {fontSizeControl(language, key)}
+          {language !== sourceLanguage && <button className="retranslate-button" onClick={() => retranslate(language, label, String(selected.content[sourceLanguage].config[key] ?? ''), (value) => updateConfig(language, key, value))}>重译</button>}
           {language !== 'English' && <button className="row-remove" onClick={() => updateConfig(language, key, '')} title="清空该语言内容"><X size={15} /></button>}
         </div>
       ))}
@@ -1069,7 +1041,7 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
   return (
     <div className="module-form multilingual-form">
       <section className="upload-block multilingual-head">
-        <div className="block-label">多语言内容 <span className="multilingual-actions"><button className="ai-upload" onClick={onGenerateAi}><Sparkles size={14} /> AI 生成多语言</button><button className="ai-upload" onClick={() => flash('已打开多语言文档上传') }><Upload size={14} /> 上传多语言文档</button></span></div>
+        <div className="block-label">多语言内容 <span className="multilingual-actions"><button className="ai-upload" onClick={() => flash('已打开多语言文档上传') }><Upload size={14} /> 上传多语言文档</button></span></div>
         <p>所有面向用户展示的图片与文字，均按语言分别配置。</p>
       </section>
       {hasDisplayImage && <section className="localized-field">
@@ -1099,11 +1071,12 @@ function ModuleForm({ selected, languages, updateModule, updateContent, replaceC
       {selected.kind !== 'hero' && <section className="localized-field">
         <div className="localized-field-label">副标题</div>
         {languages.map((language) => (
-          <div className="localized-row" key={`${language}-subtitle`}>
+          <div className={`localized-row ${language !== sourceLanguage ? 'with-retranslate' : ''}`} key={`${language}-subtitle`}>
             <select value={language} disabled><option>{languageLabels[language]}</option></select>
             <input value={selected.content[language].subtitle} onFocus={() => onFocusPreviewField(language, 'subtitle')} onChange={(event) => updateContent(language, { subtitle: event.target.value })} placeholder={`${languageLabels[language]} 副标题`} />
             {colorControl(language, 'subtitle', '#9a8174')}
             {fontSizeControl(language, 'subtitle')}
+            {language !== sourceLanguage && <button className="retranslate-button" onClick={() => retranslate(language, 'subtitle', selected.content[sourceLanguage].subtitle, (value) => updateContent(language, { subtitle: value }))}>重译</button>}
             {language !== 'English' && <button className="row-remove" onClick={() => updateContent(language, { subtitle: '' })} title="清空该语言副标题"><X size={15} /></button>}
           </div>
         ))}
@@ -1309,11 +1282,9 @@ function ReviewRules({ modules, selectedId, onSelect }: { modules: PageModule[];
   return <aside className="review-rules"><b>需求追踪</b>{modules.map((item) => <button ref={(element) => { ruleRefs.current[item.id] = element }} className={item.id === selectedId ? 'active' : ''} key={item.id} onClick={() => onSelect(item.id)}><span>{item.fr}</span>{item.label}<i /></button>)}</aside>
 }
 
-function LanguageDialog({ selected, autoTranslate, onToggle, onToggleAuto, onClose, onConfirm }: {
+function LanguageDialog({ selected, onToggle, onClose, onConfirm }: {
   selected: Language[]
-  autoTranslate: boolean
   onToggle: (language: Language) => void
-  onToggleAuto: () => void
   onClose: () => void
   onConfirm: () => void
 }) {
@@ -1352,10 +1323,6 @@ function LanguageDialog({ selected, autoTranslate, onToggle, onToggleAuto, onClo
               </button>
             )
           })}
-        </div>
-        <div className="auto-translate-row">
-          <div><b>自动翻译</b><span>以 English 内容为源语言生成初稿；图片仍需按语言单独上传。</span></div>
-          <button className={`switch ${autoTranslate ? '' : 'off'}`} onClick={onToggleAuto} aria-label="自动翻译"><i /></button>
         </div>
         <footer><button className="secondary" onClick={onClose}>取消</button><button className="primary" onClick={onConfirm}>确定</button></footer>
       </section>
